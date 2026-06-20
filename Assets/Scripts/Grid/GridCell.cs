@@ -13,8 +13,8 @@ public class GridCell
     // ---- 通常配置 ----
     public GameObject PlacedObject { get; private set; }
 
-    /// <summary>「PlacedObjectがある」または「複数マス建物のフットプリントに含まれる」なら占有中。</summary>
-    public bool IsOccupied => PlacedObject != null || IsPartOfBuilding;
+    /// <summary>「PlacedObjectがある」「建物フットプリント」「採掘リソース」いずれかがあれば占有中。</summary>
+    public bool IsOccupied => PlacedObject != null || IsPartOfBuilding || IsResource;
 
     // ---- 農業 ----
     public bool IsFarmland { get; private set; }
@@ -26,6 +26,30 @@ public class GridCell
     public bool IsTrack { get; private set; }
 
     public void SetTrack(bool value) => IsTrack = value;
+
+    // ---- 採掘リソース ----
+    public bool IsResource   { get; private set; }
+    public ResourceType ResourceType { get; private set; }
+    public int ResourceHp    { get; private set; }
+    public int ResourceMaxHp { get; private set; }
+
+    public void SetResource(ResourceType type, int maxHp)
+    {
+        IsResource   = true;
+        ResourceType = type;
+        ResourceHp   = ResourceMaxHp = maxHp;
+    }
+
+    public void DamageResource(int damage) =>
+        ResourceHp = Mathf.Max(0, ResourceHp - damage);
+
+    public void ClearResource()
+    {
+        IsResource   = false;
+        ResourceType = default;
+        ResourceHp   = ResourceMaxHp = 0;
+        ClearPlacedObject();
+    }
 
     // ---- 複数マス建物 ----
     public bool IsPartOfBuilding => BuildingRoot != null;
@@ -48,8 +72,11 @@ public class GridCell
     public void Clear()
     {
         PlacedObject = null;
-        IsFarmland = false;
-        IsTrack = false;
+        IsFarmland   = false;
+        IsTrack      = false;
+        IsResource   = false;
+        ResourceType = default;
+        ResourceHp   = ResourceMaxHp = 0;
         ClearCrop();
         ClearBuilding();
     }

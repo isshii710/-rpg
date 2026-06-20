@@ -106,6 +106,13 @@ public class GridPlacer : MonoBehaviour
 
     void HandleLeftClick(int x, int z, PlacementItemConfig item, GridCell cell)
     {
+        // リソースマス（岩・木）なら採掘を優先（ツール選択に関わらず）
+        if (cell != null && cell.IsResource)
+        {
+            ResourceManager.Instance?.TryMine(x, z);
+            return;
+        }
+
         var inv = InventoryManager.Instance;  // null の場合はアイテムチェックをスキップ
 
         switch (item.type)
