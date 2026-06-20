@@ -57,6 +57,9 @@ public class GridManager : MonoBehaviour
     {
         if (!IsValid(x, z) || !cells[x, z].IsOccupied) return false;
 
+        // 複数マス建物は BuildingManager 経由で撤去する（ここでは扱わない）
+        if (cells[x, z].IsPartOfBuilding) return false;
+
         // 畑タイルを撤去するとき、その上の作物も一緒に破棄する
         cells[x, z].ClearCrop();
         Destroy(cells[x, z].PlacedObject);
