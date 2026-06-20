@@ -106,13 +106,24 @@ public class GridPlacer : MonoBehaviour
 
     void HandleLeftClick(int x, int z, PlacementItemConfig item, GridCell cell)
     {
+        var inv = InventoryManager.Instance;  // null の場合はアイテムチェックをスキップ
+
         switch (item.type)
         {
             case ItemType.Building:
                 if (item.buildingData != null)
-                    BuildingManager.Instance.TryPlace(x, z, item.buildingData, currentRotation);
+                {
+                    ItemId req = item.buildingData.requiredItem;
+                    // アイテム所持確認（None ならスキップ）
+                    if (inv != null && req != ItemId.None && !inv.HasItem(req)) break;
+
+                    if (BuildingManager.Instance.TryPlace(x, z, item.buildingData, currentRotation))
+                        inv?.ConsumeItem(req);  // 配置成功後に消費
+                }
                 else
+                {
                     GridManager.Instance.TryPlace(x, z, item.prefab);
+                }
                 break;
 
             case ItemType.Farmland:
@@ -121,11 +132,16 @@ public class GridPlacer : MonoBehaviour
                 break;
 
             case ItemType.Seed:
+                // 種の消費は FarmManager.TryPlantSeed 内で行う
                 FarmManager.Instance.TryPlantSeed(x, z);
                 break;
 
             case ItemType.Track:
-                RailManager.Instance.TryPlaceTrack(x, z);
+                // アイテム所持確認
+                if (inv != null && !inv.HasItem(ItemId.Track)) break;
+
+                if (RailManager.Instance.TryPlaceTrack(x, z))
+                    inv?.ConsumeItem(ItemId.Track);  // 配置成功後に消費
                 break;
         }
     }

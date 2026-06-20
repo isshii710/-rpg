@@ -17,4 +17,8 @@ public class BuildingData : ScriptableObject
     [Header("占有サイズ（マス数）")]
     [Min(1)] public int sizeX = 1;  // 東西方向
     [Min(1)] public int sizeZ = 1;  // 南北方向
+
+    [Header("インベントリ連携")]
+    [Tooltip("配置時に消費するアイテム。None なら消費なし。")]
+    public ItemId requiredItem = ItemId.None;
 }

@@ -35,6 +35,11 @@ public class FarmManager : MonoBehaviour
         GridCell cell = GridManager.Instance.GetCell(x, z);
         if (cell == null || !cell.IsFarmland || cell.HasCrop) return false;
 
+        // インベントリから種を1個消費（InventoryManager がいない場合はスキップ）
+        if (InventoryManager.Instance != null &&
+            !InventoryManager.Instance.ConsumeItem(ItemId.VegetableSeed))
+            return false;
+
         Vector3 pos = GridManager.Instance.GetWorldPosition(x, z);
         GameObject seedObj = Instantiate(seedPrefab, pos, Quaternion.identity);
         cell.PlantSeed(seedObj);
@@ -53,9 +58,10 @@ public class FarmManager : MonoBehaviour
         if (cell == null || cell.CropStage != CropStage.Mature) return false;
 
         cell.ClearCrop();
-        Debug.Log($"[FarmManager] 収穫成功！ マス({x},{z}) → アイテムを入手");
 
-        // TODO: プレイヤーのインベントリにアイテムを追加する処理をここに書く
+        // インベントリに野菜を追加
+        InventoryManager.Instance?.AddItem(ItemId.Vegetable);
+        Debug.Log($"[FarmManager] 収穫成功！ マス({x},{z}) → 野菜をインベントリに追加");
         return true;
     }
 
