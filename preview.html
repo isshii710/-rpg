@@ -2,49 +2,128 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>RPG Grid Preview</title>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
+html { height:100%; }
 body {
   background:#0d0d1a; color:#d0d0f0;
   font-family:'Segoe UI',system-ui,sans-serif;
   display:flex; flex-direction:column; align-items:center;
-  padding:14px; gap:8px; min-height:100vh;
+  padding:8px; gap:5px;
+  min-height:100%;
+  -webkit-user-select:none; user-select:none;
+  -webkit-tap-highlight-color:transparent;
 }
-h1 { font-size:15px; color:#8888ff; letter-spacing:1px; }
-.toolbar { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+@media (pointer:coarse) { body { padding-bottom:178px; } }
+
+h1 { font-size:13px; color:#8888ff; letter-spacing:1px; flex-shrink:0; }
+
+.toolbar { display:flex; gap:5px; flex-wrap:wrap; justify-content:center; flex-shrink:0; }
 .btn {
-  padding:5px 11px; border:1.5px solid #44445a; background:#1e1e32;
-  color:#aaaacc; border-radius:5px; cursor:pointer; font-size:12px;
-  transition:all .1s; user-select:none;
+  padding:5px 10px; border:1.5px solid #44445a; background:#1e1e32;
+  color:#aaaacc; border-radius:5px; cursor:pointer; font-size:11px;
+  transition:all .1s; touch-action:manipulation;
 }
-.btn:hover { border-color:#6666aa; background:#28283c; color:#ccccee; }
 .btn.active { border-color:#7777ff; background:#2a2a4a; color:#eeeeff; }
 .btn.go { border-color:#44cc77; color:#44cc77; }
 .btn.go.active { background:#1a3a1a; }
-#canvas { border:1.5px solid #333355; border-radius:3px; cursor:crosshair; }
-.status { font-size:11px; color:#777799; min-height:16px; text-align:center; }
-.legend { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; font-size:10px; color:#666688; }
+
+#canvas-wrap { flex-shrink:0; line-height:0; }
+#canvas {
+  border:1.5px solid #333355; border-radius:3px;
+  display:block; touch-action:none; cursor:crosshair;
+}
+
+.status { font-size:10px; color:#777799; text-align:center; min-height:14px; flex-shrink:0; }
+
+.legend { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; font-size:9px; color:#666688; flex-shrink:0; }
 .li { display:flex; align-items:center; gap:3px; }
-.lb { width:10px; height:10px; border-radius:2px; display:inline-block; flex-shrink:0; }
+.lb { width:9px; height:9px; border-radius:2px; display:inline-block; flex-shrink:0; }
+
+/* ===== ぷにコン + アクションボタン ===== */
+#mobile-controls {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  height:168px;
+  background:linear-gradient(to bottom, transparent 0%, rgba(4,4,18,.96) 28%);
+  align-items:flex-end;
+  justify-content:space-between;
+  padding:8px 18px 16px;
+  z-index:100;
+  pointer-events:none;
+}
+@media (pointer:coarse) { #mobile-controls { display:flex; } }
+
+/* ぷにコン */
+#joystick-zone {
+  width:148px; height:148px; position:relative;
+  pointer-events:auto; flex-shrink:0;
+  /* debug: */
+}
+#joy-base {
+  width:88px; height:88px; border-radius:50%;
+  background:rgba(70,70,180,.18);
+  border:2px solid rgba(110,110,220,.38);
+  position:absolute; display:none;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+}
+#joy-stick {
+  width:40px; height:40px; border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, rgba(190,190,255,.9), rgba(90,90,210,.75));
+  border:1.5px solid rgba(200,200,255,.65);
+  position:absolute; display:none;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  box-shadow:0 0 14px rgba(100,100,255,.45), 0 2px 5px rgba(0,0,0,.55);
+}
+
+/* アクションボタン */
+#action-zone {
+  display:flex; flex-direction:column; gap:7px; align-items:flex-end;
+  pointer-events:auto; flex-shrink:0;
+}
+.act-row { display:flex; gap:9px; align-items:center; }
+.abtn {
+  border-radius:50%; border:2px solid;
+  background:rgba(16,16,46,.88);
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:1px; line-height:1.1; text-align:center;
+  touch-action:manipulation; cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.55);
+  transition:filter .06s;
+}
+.abtn:active, .abtn.pressed { filter:brightness(1.5); }
+.abtn.sm  { width:52px; height:52px; }
+.abtn.lg  { width:66px; height:66px; }
+.abtn .ico { font-size:17px; }
+.abtn .lbl { font-size:9px; opacity:.85; }
+.abtn.place { border-color:rgba(70,210,100,.65);  color:#88ee99; box-shadow:0 0 10px rgba(40,150,60,.3),  0 2px 8px rgba(0,0,0,.5); }
+.abtn.rmv   { border-color:rgba(220,70,70,.65);   color:#ee8888; box-shadow:0 0 10px rgba(150,40,40,.3),  0 2px 8px rgba(0,0,0,.5); }
+.abtn.trn   { border-color:rgba(70,210,220,.65);  color:#88eef0; box-shadow:0 0 10px rgba(40,150,165,.3), 0 2px 8px rgba(0,0,0,.5); }
+.abtn.trn.active { background:rgba(20,50,55,.9); border-color:rgba(100,240,255,.8); }
 </style>
 </head>
 <body>
 <h1>⚙ グリッドシステム プレビュー (10×10)</h1>
 <div class="toolbar">
   <button class="btn active" id="btn-track"    onclick="setTool('track')">🛤 線路</button>
-  <button class="btn"        id="btn-building" onclick="setTool('building')">🏠 建物(2×2)</button>
+  <button class="btn"        id="btn-building" onclick="setTool('building')">🏠 建物</button>
   <button class="btn"        id="btn-farmland" onclick="setTool('farmland')">▪ 畑</button>
-  <button class="btn"        id="btn-seed"     onclick="setTool('seed')">🌱 種まき</button>
+  <button class="btn"        id="btn-seed"     onclick="setTool('seed')">🌱 種</button>
   <button class="btn"        id="btn-remove"   onclick="setTool('remove')">✕ 撤去</button>
-  <button class="btn go"     id="btn-train"    onclick="toggleTrain()">▶ 列車を走らせる</button>
+  <button class="btn go"     id="btn-train"    onclick="toggleTrain()">▶ 列車</button>
 </div>
-<canvas id="canvas" width="510" height="510"></canvas>
-<div class="status" id="status">ツールを選んでクリック / 右クリック：撤去 / 線路はドラッグ可</div>
+<div id="canvas-wrap">
+  <canvas id="canvas" width="510" height="510"></canvas>
+</div>
+<div class="status" id="status">PC：クリック／ドラッグ　スマホ：ぷにコンで移動 → ✓ で配置</div>
 <div class="legend">
   <div class="li"><span class="lb" style="background:#4a82c4"></span>建物</div>
   <div class="li"><span class="lb" style="background:#6b3d1e"></span>畑</div>
-  <div class="li"><span class="lb" style="background:#c49a1a"></span>種</div>
   <div class="li"><span class="lb" style="background:#5a9a4a"></span>若葉</div>
   <div class="li"><span class="lb" style="background:#2a7a2a"></span>収穫可</div>
   <div class="li"><span class="lb" style="background:#cccccc"></span>線路</div>
@@ -52,26 +131,77 @@ h1 { font-size:15px; color:#8888ff; letter-spacing:1px; }
   <div class="li"><span class="lb" style="background:#ff4444;border-radius:50%"></span>列車</div>
 </div>
 
+<!-- ぷにコン + アクションボタン（スマホのみ表示） -->
+<div id="mobile-controls">
+  <div id="joystick-zone">
+    <div id="joy-base"></div>
+    <div id="joy-stick"></div>
+  </div>
+  <div id="action-zone">
+    <div class="act-row">
+      <button class="abtn sm trn" id="ab-train">
+        <span class="ico">🚂</span><span class="lbl">列車</span>
+      </button>
+    </div>
+    <div class="act-row">
+      <button class="abtn sm rmv" id="ab-remove">
+        <span class="ico">✕</span><span class="lbl">撤去</span>
+      </button>
+      <button class="abtn lg place" id="ab-place">
+        <span class="ico">✓</span><span class="lbl">配置</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 const CELL=50, W=10, H=10;
 const canvas=document.getElementById('canvas');
 const ctx=canvas.getContext('2d');
 
-// ---- Data ----
+// ---- State ----
 const grid=Array.from({length:W},(_,x)=>Array.from({length:H},(_,z)=>
   ({x,z,isTrack:false,isFarmland:false,cropStage:'none',buildingRoot:null,buildingSize:null})));
 const G=(x,z)=>(x>=0&&x<W&&z>=0&&z<H)?grid[x][z]:null;
 const occupied=c=>c.isTrack||c.isFarmland||c.buildingRoot!==null;
 
-let tool='track', hover=null, isDrag=false;
+let tool='track', isDrag=false, hover=null;
+let cursor={x:4,z:4};
 let trainPath=[], trainT=0, trainDir=1, trainRunning=false, rafId=null, lastMs=0;
 const cropTimers={};
 
-// ---- Tools ----
+// ---- Canvas responsive scaling ----
+function resizeCanvas(){
+  const isMobile=window.matchMedia('(pointer:coarse)').matches;
+  const ctrlH=isMobile?178:0;
+  const pad=isMobile?8:14;
+  const els=['.toolbar','.legend'];
+  let fixedH=document.querySelector('h1').offsetHeight+14+ctrlH+pad*4;
+  els.forEach(s=>{const e=document.querySelector(s);if(e)fixedH+=e.offsetHeight+5;});
+  const availW=window.innerWidth-pad*2;
+  const availH=window.innerHeight-fixedH;
+  const sz=Math.round(Math.min(availW,availH,510));
+  canvas.style.width=sz+'px';
+  canvas.style.height=sz+'px';
+}
+window.addEventListener('resize',()=>{resizeCanvas();draw();});
+window.addEventListener('load',()=>{resizeCanvas();draw();});
+setTimeout(()=>{resizeCanvas();draw();},80);
+
+// ---- Tool select ----
 function setTool(t){
   tool=t;
   document.querySelectorAll('.btn:not(.go)').forEach(b=>b.classList.remove('active'));
   document.getElementById('btn-'+t)?.classList.add('active');
+  setStatus(`ツール: ${t}`);
+}
+
+// ---- Grid position from client coords ----
+function getGridPos(clientX,clientY){
+  const r=canvas.getBoundingClientRect();
+  const x=Math.floor((clientX-r.left)/r.width*W);
+  const z=Math.floor((clientY-r.top)/r.height*H);
+  return(x>=0&&x<W&&z>=0&&z<H)?{x,z}:null;
 }
 
 // ---- Track ----
@@ -79,9 +209,9 @@ const getConn=(x,z)=>({
   north:!!(G(x,z-1)?.isTrack), south:!!(G(x,z+1)?.isTrack),
   east:!!(G(x+1,z)?.isTrack),  west:!!(G(x-1,z)?.isTrack),
 });
-function placeTrack(x,z){const c=G(x,z);if(!c||occupied(c))return;c.isTrack=true;draw();}
+function placeTrack(x,z){const c=G(x,z);if(!c||occupied(c))return;c.isTrack=true;}
 
-// ---- Building (2×2) ----
+// ---- Building 2×2 ----
 function placeBuilding(rx,rz){
   for(let dx=0;dx<2;dx++)for(let dz=0;dz<2;dz++){const c=G(rx+dx,rz+dz);if(!c||occupied(c))return;}
   for(let dx=0;dx<2;dx++)for(let dz=0;dz<2;dz++){
@@ -89,11 +219,10 @@ function placeBuilding(rx,rz){
     c.buildingRoot={x:rx,z:rz};
     if(dx===0&&dz===0)c.buildingSize={w:2,h:2};
   }
-  draw();
 }
 
 // ---- Farm ----
-function placeFarmland(x,z){const c=G(x,z);if(!c||occupied(c))return;c.isFarmland=true;draw();}
+function placeFarmland(x,z){const c=G(x,z);if(!c||occupied(c))return;c.isFarmland=true;}
 function plantSeed(x,z){
   const c=G(x,z);if(!c||!c.isFarmland||c.cropStage!=='none')return;
   c.cropStage='seed';
@@ -102,10 +231,8 @@ function plantSeed(x,z){
     if(c.cropStage==='seed'){c.cropStage='sprout';draw();
       cropTimers[k]=setTimeout(()=>{
         if(c.cropStage==='sprout'){c.cropStage='mature';draw();setStatus(`🌾 (${x},${z}) 収穫可能！`);}
-      },4000);
-    }
+      },4000);}
   },2000);
-  draw();
 }
 
 // ---- Remove ----
@@ -119,6 +246,15 @@ function removeCell(x,z){
         const cc=G(r.x+dx,r.z+dz);if(cc){cc.buildingRoot=null;cc.buildingSize=null;}}}
   }else if(c.cropStage==='mature'){c.cropStage='none';setStatus(`✅ (${x},${z}) 収穫！`);}
   else if(c.isFarmland){clearTimeout(cropTimers[`${x},${z}`]);c.isFarmland=false;c.cropStage='none';}
+}
+
+// ---- Act (current tool on cell) ----
+function act(x,z){
+  if(tool==='track')placeTrack(x,z);
+  else if(tool==='building')placeBuilding(x,z);
+  else if(tool==='farmland')placeFarmland(x,z);
+  else if(tool==='seed')plantSeed(x,z);
+  else if(tool==='remove')removeCell(x,z);
   draw();
 }
 
@@ -142,6 +278,11 @@ function bfs(sx,sz,ex,ez){
 }
 
 // ---- Train ----
+function updateTrainButtons(running){
+  const db=document.getElementById('btn-train');
+  if(db){db.classList.toggle('active',running);db.textContent=running?'⏹ 停止':'▶ 列車';}
+  document.getElementById('ab-train').classList.toggle('active',running);
+}
 function toggleTrain(){
   if(trainRunning){stopTrain();return;}
   const tracks=[],ends=[];
@@ -158,15 +299,14 @@ function toggleTrain(){
   const path=bfs(sx,sz,ex,ez);
   if(!path){setStatus('❌ 線路が繋がっていません');return;}
   trainPath=path;trainT=0;trainDir=1;trainRunning=true;
-  document.getElementById('btn-train').classList.add('active');
-  document.getElementById('btn-train').textContent='⏹ 停止';
+  updateTrainButtons(true);
   setStatus(`🚂 列車走行中 (${path.length}マス・往復)`);
   lastMs=performance.now();rafId=requestAnimationFrame(animTrain);
 }
 function stopTrain(){
-  trainRunning=false;trainPath=[];if(rafId)cancelAnimationFrame(rafId);
-  document.getElementById('btn-train').classList.remove('active');
-  document.getElementById('btn-train').textContent='▶ 列車を走らせる';
+  trainRunning=false;trainPath=[];
+  if(rafId)cancelAnimationFrame(rafId);
+  updateTrainButtons(false);
   draw();setStatus('列車を停止しました');
 }
 function animTrain(now){
@@ -178,7 +318,6 @@ function animTrain(now){
   if(trainT<=0){trainT=0;trainDir=1;}
   draw();rafId=requestAnimationFrame(animTrain);
 }
-
 function setStatus(m){document.getElementById('status').textContent=m;}
 
 // ---- Draw ----
@@ -190,7 +329,6 @@ const C={
   pathHL:'rgba(255,220,60,.15)',trainGlow:'rgba(255,80,80,.3)',train:'#ff4444',
   startDot:'#00cc66',endDot:'#ff4488',
 };
-
 function draw(){
   ctx.clearRect(0,0,510,510);
   ctx.fillStyle=C.bg;ctx.fillRect(0,0,510,510);
@@ -219,18 +357,24 @@ function draw(){
     ctx.fillStyle=C.train;ctx.beginPath();ctx.arc(tx,tz,7,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='rgba(255,160,160,.8)';ctx.lineWidth=1.5;ctx.stroke();
   }
-  // Hover
+  // Desktop hover
   if(hover){
     ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=2;
     ctx.strokeRect(hover.x*CELL+1,hover.z*CELL+1,CELL-2,CELL-2);
   }
+  // Mobile cursor (yellow selection box)
+  if(window.matchMedia('(pointer:coarse)').matches){
+    const cx=cursor.x*CELL,cz=cursor.z*CELL;
+    ctx.strokeStyle='rgba(255,255,70,.85)';ctx.lineWidth=2.5;
+    ctx.strokeRect(cx+2,cz+2,CELL-4,CELL-4);
+    ctx.strokeStyle='rgba(255,255,70,.22)';ctx.lineWidth=1;
+    ctx.strokeRect(cx+.5,cz+.5,CELL-1,CELL-1);
+  }
 }
-
 function drawCell(x,z){
   const c=grid[x][z],px=x*CELL,pz=z*CELL;
   ctx.fillStyle=C.cellBg;ctx.fillRect(px,pz,CELL,CELL);
   ctx.strokeStyle=C.border;ctx.lineWidth=.5;ctx.strokeRect(px+.5,pz+.5,CELL-1,CELL-1);
-
   if(c.buildingRoot){
     const r=c.buildingRoot;
     if(r.x===x&&r.z===z&&c.buildingSize){
@@ -273,24 +417,21 @@ function drawCell(x,z){
   }
 }
 
-// ---- Input ----
-const pos=e=>{const r=canvas.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)/CELL),z=Math.floor((e.clientY-r.top)/CELL);return(x>=0&&x<W&&z>=0&&z<H)?{x,z}:null;};
-const act=(x,z)=>{
-  if(tool==='track')placeTrack(x,z);
-  else if(tool==='building')placeBuilding(x,z);
-  else if(tool==='farmland')placeFarmland(x,z);
-  else if(tool==='seed')plantSeed(x,z);
-  else if(tool==='remove')removeCell(x,z);
-};
-canvas.addEventListener('mousedown',e=>{if(e.button!==0)return;isDrag=true;const p=pos(e);if(p)act(p.x,p.z);});
+// ======== マウス入力 ========
+canvas.addEventListener('mousedown',e=>{
+  if(e.button!==0)return;
+  isDrag=true;
+  const p=getGridPos(e.clientX,e.clientY);
+  if(p){cursor={x:p.x,z:p.z};act(p.x,p.z);}
+});
 canvas.addEventListener('mouseup',()=>isDrag=false);
 canvas.addEventListener('mousemove',e=>{
-  const p=pos(e);hover=p;
-  if(isDrag&&p&&(tool==='track'||tool==='remove'))act(p.x,p.z);
+  const p=getGridPos(e.clientX,e.clientY);hover=p;
+  if(isDrag&&p&&(tool==='track'||tool==='remove')){cursor={x:p.x,z:p.z};act(p.x,p.z);return;}
   if(p){
     const c=grid[p.x][p.z];
     let info=`マス(${p.x},${p.z})`;
-    if(c.isTrack){const cn=getConn(p.x,p.z);const d=Object.entries(cn).filter(([,v])=>v).map(([k])=>k).join(', ');info+=` ┃ 線路 [接続: ${d||'なし'}]`;}
+    if(c.isTrack){const cn=getConn(p.x,p.z);const d=Object.entries(cn).filter(([,v])=>v).map(([k])=>k).join(', ');info+=` ┃ 線路 [${d||'孤立'}]`;}
     else if(c.buildingRoot)info+=' ┃ 建物';
     else if(c.isFarmland)info+=` ┃ 畑 [${{none:'空き',seed:'種',sprout:'若葉',mature:'収穫可能'}[c.cropStage]}]`;
     else info+=' ┃ 空き';
@@ -299,7 +440,118 @@ canvas.addEventListener('mousemove',e=>{
   draw();
 });
 canvas.addEventListener('mouseleave',()=>{hover=null;draw();});
-canvas.addEventListener('contextmenu',e=>{e.preventDefault();const p=pos(e);if(p)removeCell(p.x,p.z);});
+canvas.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  const p=getGridPos(e.clientX,e.clientY);
+  if(p){removeCell(p.x,p.z);draw();}
+});
+
+// ======== タッチ入力（キャンバス直接タップ） ========
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const t=e.changedTouches[0];
+  const p=getGridPos(t.clientX,t.clientY);
+  if(p){isDrag=true;cursor={x:p.x,z:p.z};act(p.x,p.z);}
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const t=e.changedTouches[0];
+  const p=getGridPos(t.clientX,t.clientY);
+  if(p&&isDrag){
+    cursor={x:p.x,z:p.z};
+    if(tool==='track'||tool==='remove')act(p.x,p.z);
+    else draw();
+  }
+},{passive:false});
+canvas.addEventListener('touchend',e=>{e.preventDefault();isDrag=false;},{passive:false});
+
+// ======== ぷにコン（バーチャルジョイスティック） ========
+const joyZone =document.getElementById('joystick-zone');
+const joyBase =document.getElementById('joy-base');
+const joyStick=document.getElementById('joy-stick');
+const JOY_MAX=44, JOY_DEAD=13;
+
+let joyTouchId=null, joyOrigin={x:74,y:74};
+let joyCurrentDir=null, joyMoveTimer=null;
+
+function moveCursor(dir){
+  if(dir==='n'&&cursor.z>0)cursor.z--;
+  else if(dir==='s'&&cursor.z<H-1)cursor.z++;
+  else if(dir==='e'&&cursor.x<W-1)cursor.x++;
+  else if(dir==='w'&&cursor.x>0)cursor.x--;
+  setStatus(`カーソル (${cursor.x},${cursor.z})`);
+  draw();
+}
+
+joyZone.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  const touch=e.changedTouches[0];
+  joyTouchId=touch.identifier;
+  const r=joyZone.getBoundingClientRect();
+  const ox=touch.clientX-r.left, oy=touch.clientY-r.top;
+  joyOrigin={x:ox,y:oy};
+  joyBase.style.left=ox+'px'; joyBase.style.top=oy+'px'; joyBase.style.display='block';
+  joyStick.style.left=ox+'px'; joyStick.style.top=oy+'px'; joyStick.style.display='block';
+},{passive:false});
+
+joyZone.addEventListener('touchmove',e=>{
+  e.preventDefault();
+  const touch=Array.from(e.touches).find(t=>t.identifier===joyTouchId);
+  if(!touch)return;
+  const r=joyZone.getBoundingClientRect();
+  const dx=touch.clientX-r.left-joyOrigin.x;
+  const dy=touch.clientY-r.top-joyOrigin.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  const clamped=Math.min(dist,JOY_MAX);
+  const angle=Math.atan2(dy,dx);
+  joyStick.style.left=(joyOrigin.x+Math.cos(angle)*clamped)+'px';
+  joyStick.style.top =(joyOrigin.y+Math.sin(angle)*clamped)+'px';
+
+  if(dist>JOY_DEAD){
+    const deg=(angle*180/Math.PI+360)%360;
+    const d=deg>=315||deg<45?'e':deg<135?'s':deg<225?'w':'n';
+    if(d!==joyCurrentDir){
+      joyCurrentDir=d;
+      clearInterval(joyMoveTimer);
+      moveCursor(d);
+      joyMoveTimer=setInterval(()=>moveCursor(d),155);
+    }
+  }else if(joyCurrentDir){
+    joyCurrentDir=null;clearInterval(joyMoveTimer);
+  }
+},{passive:false});
+
+joyZone.addEventListener('touchend',e=>{
+  e.preventDefault();
+  joyTouchId=null; joyCurrentDir=null;
+  clearInterval(joyMoveTimer);
+  joyBase.style.display='none'; joyStick.style.display='none';
+},{passive:false});
+
+// ======== アクションボタン ========
+function btnFeedback(el){
+  el.classList.add('pressed');
+  setTimeout(()=>el.classList.remove('pressed'),120);
+}
+
+document.getElementById('ab-place').addEventListener('touchstart',e=>{
+  e.preventDefault();
+  btnFeedback(e.currentTarget);
+  act(cursor.x,cursor.z);
+},{passive:false});
+
+document.getElementById('ab-remove').addEventListener('touchstart',e=>{
+  e.preventDefault();
+  btnFeedback(e.currentTarget);
+  removeCell(cursor.x,cursor.z);
+  draw();
+},{passive:false});
+
+document.getElementById('ab-train').addEventListener('touchstart',e=>{
+  e.preventDefault();
+  btnFeedback(e.currentTarget);
+  toggleTrain();
+},{passive:false});
 
 draw();
 </script>
