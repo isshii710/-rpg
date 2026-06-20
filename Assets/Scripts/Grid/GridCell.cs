@@ -22,6 +22,11 @@ public class GridCell
     public GameObject CropObject { get; private set; }
     public bool HasCrop => CropStage != CropStage.None;
 
+    // ---- 線路 ----
+    public bool IsTrack { get; private set; }
+
+    public void SetTrack(bool value) => IsTrack = value;
+
     // ---- 複数マス建物 ----
     public bool IsPartOfBuilding => BuildingRoot != null;
     public GridCell BuildingRoot { get; private set; }
@@ -44,6 +49,7 @@ public class GridCell
     {
         PlacedObject = null;
         IsFarmland = false;
+        IsTrack = false;
         ClearCrop();
         ClearBuilding();
     }
