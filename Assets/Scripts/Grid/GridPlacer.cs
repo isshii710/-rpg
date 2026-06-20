@@ -1,14 +1,39 @@
 using UnityEngine;
 
 /// <summary>
-/// マウス操作でグリッドにオブジェクトを配置・削除するコントローラー。
-/// 左クリック：配置　右クリック：削除
-/// 数字キー 1〜9：配置するプレハブを切り替え
+/// 配置アイテムの種類。
+/// 将来「線路」「水路」などを追加するときはここに値を足す。
+/// </summary>
+public enum ItemType
+{
+    Building,  // 家などの通常建物
+    Farmland,  // 畑タイル（配置後に農業が可能になる）
+    Seed,      // 種（畑マスにのみ植えられる）
+}
+
+/// <summary>
+/// Inspectorで設定するアイテム1件分の情報。
+/// </summary>
+[System.Serializable]
+public class PlacementItemConfig
+{
+    public string label   = "アイテム";
+    public ItemType type  = ItemType.Building;
+    public GameObject prefab;  // 配置・プレビューに使うプレハブ
+}
+
+/// <summary>
+/// マウス操作でグリッドを操作するコントローラー。
+///
+/// 【操作】
+///   数字キー 1〜9  : アイテム切り替え
+///   左クリック     : アイテムに応じた配置（建物/畑/種まき）
+///   右クリック     : 収穫可能な作物なら収穫、それ以外は撤去
 /// </summary>
 public class GridPlacer : MonoBehaviour
 {
-    [Header("配置するプレハブ（1〜9キーで切替）")]
-    [SerializeField] GameObject[] placementPrefabs;
+    [Header("配置アイテム（数字キー 1〜9 で切替）")]
+    [SerializeField] PlacementItemConfig[] items;
 
     [Header("地面のレイヤー（Groundレイヤーを設定する）")]
     [SerializeField] LayerMask groundLayer;
@@ -17,9 +42,8 @@ public class GridPlacer : MonoBehaviour
     GameObject previewObject;
     Camera mainCamera;
 
-    // プレビュー用に使う半透明マテリアルの色
-    static readonly Color ColorOk  = new Color(0f, 1f, 0f, 0.5f);
-    static readonly Color ColorNg  = new Color(1f, 0f, 0f, 0.5f);
+    static readonly Color ColorOk = new Color(0f, 1f, 0f, 0.5f);
+    static readonly Color ColorNg = new Color(1f, 0f, 0f, 0.5f);
 
     void Start()
     {
@@ -29,7 +53,7 @@ public class GridPlacer : MonoBehaviour
 
     void Update()
     {
-        HandlePrefabSwitch();
+        HandleItemSwitch();
 
         if (!RaycastToGrid(out int x, out int z))
         {
@@ -40,21 +64,20 @@ public class GridPlacer : MonoBehaviour
         SetPreviewVisible(true);
         MovePreview(x, z);
 
-        bool occupied = GridManager.Instance.GetCell(x, z)?.IsOccupied ?? true;
-        TintPreview(occupied ? ColorNg : ColorOk);
+        GridCell cell = GridManager.Instance.GetCell(x, z);
+        PlacementItemConfig current = items[selectedIndex];
 
-        if (Input.GetMouseButtonDown(0))   // 左クリック → 配置
-            GridManager.Instance.TryPlace(x, z, placementPrefabs[selectedIndex]);
+        TintPreview(CanActOnCell(current, cell) ? ColorOk : ColorNg);
 
-        if (Input.GetMouseButtonDown(1))   // 右クリック → 削除
-            GridManager.Instance.TryRemove(x, z);
+        if (Input.GetMouseButtonDown(0)) HandleLeftClick(x, z, current, cell);
+        if (Input.GetMouseButtonDown(1)) HandleRightClick(x, z, cell);
     }
 
-    // ---- プレハブ切り替え ----
+    // ---- 入力処理 ----
 
-    void HandlePrefabSwitch()
+    void HandleItemSwitch()
     {
-        for (int i = 0; i < placementPrefabs.Length && i < 9; i++)
+        for (int i = 0; i < items.Length && i < 9; i++)
         {
             if (Input.GetKeyDown(KeyCode.Alpha1 + i))
             {
@@ -62,6 +85,53 @@ public class GridPlacer : MonoBehaviour
                 SpawnPreview();
             }
         }
+    }
+
+    void HandleLeftClick(int x, int z, PlacementItemConfig item, GridCell cell)
+    {
+        switch (item.type)
+        {
+            case ItemType.Building:
+                GridManager.Instance.TryPlace(x, z, item.prefab);
+                break;
+
+            case ItemType.Farmland:
+                // 配置に成功したらそのマスを畑フラグONにする
+                if (GridManager.Instance.TryPlace(x, z, item.prefab))
+                    cell.SetFarmland(true);
+                break;
+
+            case ItemType.Seed:
+                FarmManager.Instance.TryPlantSeed(x, z);
+                break;
+        }
+    }
+
+    void HandleRightClick(int x, int z, GridCell cell)
+    {
+        // 収穫可能な作物があれば収穫を優先する
+        if (cell != null && cell.CropStage == CropStage.Mature)
+        {
+            FarmManager.Instance.TryHarvest(x, z);
+            return;
+        }
+
+        // それ以外は建物・畑タイルを撤去する
+        GridManager.Instance.TryRemove(x, z);
+    }
+
+    /// <summary>選択中のアイテムでそのマスを操作できるか判定する。</summary>
+    bool CanActOnCell(PlacementItemConfig item, GridCell cell)
+    {
+        if (cell == null) return false;
+
+        return item.type switch
+        {
+            ItemType.Building => !cell.IsOccupied,
+            ItemType.Farmland => !cell.IsOccupied,
+            ItemType.Seed     => cell.IsFarmland && !cell.HasCrop,
+            _                 => false,
+        };
     }
 
     // ---- レイキャスト ----
@@ -81,15 +151,16 @@ public class GridPlacer : MonoBehaviour
     void SpawnPreview()
     {
         if (previewObject != null) Destroy(previewObject);
-        if (placementPrefabs == null || placementPrefabs.Length == 0) return;
+        if (items == null || items.Length == 0) return;
 
-        previewObject = Instantiate(placementPrefabs[selectedIndex]);
+        GameObject prefab = items[selectedIndex].prefab;
+        if (prefab == null) return;
 
-        // コライダーをオフにしてレイキャストに干渉させない
+        previewObject = Instantiate(prefab);
+
         foreach (var col in previewObject.GetComponentsInChildren<Collider>())
             col.enabled = false;
 
-        // 物理演算もオフ
         foreach (var rb in previewObject.GetComponentsInChildren<Rigidbody>())
             rb.isKinematic = true;
     }
@@ -110,10 +181,7 @@ public class GridPlacer : MonoBehaviour
     {
         if (previewObject == null) return;
         foreach (var r in previewObject.GetComponentsInChildren<Renderer>())
-        {
-            // マテリアルを複製してシーンのアセットを汚さない
             r.material.color = color;
-        }
     }
 
     void OnDestroy()
