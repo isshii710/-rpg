@@ -6,20 +6,21 @@ using UnityEngine;
 /// </summary>
 public enum ItemType
 {
-    Building,  // 家などの通常建物
+    Building,  // 建物（BuildingDataを使う）
     Farmland,  // 畑タイル（配置後に農業が可能になる）
     Seed,      // 種（畑マスにのみ植えられる）
 }
 
 /// <summary>
-/// Inspectorで設定するアイテム1件分の情報。
+/// Inspector で設定するアイテム1件分の情報。
 /// </summary>
 [System.Serializable]
 public class PlacementItemConfig
 {
-    public string label   = "アイテム";
-    public ItemType type  = ItemType.Building;
-    public GameObject prefab;  // 配置・プレビューに使うプレハブ
+    public string label           = "アイテム";
+    public ItemType type          = ItemType.Building;
+    public BuildingData buildingData; // Building 用（設定するとサイズ・回転が有効になる）
+    public GameObject prefab;         // Farmland / Seed 用のプレハブ
 }
 
 /// <summary>
@@ -27,18 +28,21 @@ public class PlacementItemConfig
 ///
 /// 【操作】
 ///   数字キー 1〜9  : アイテム切り替え
-///   左クリック     : アイテムに応じた配置（建物/畑/種まき）
-///   右クリック     : 収穫可能な作物なら収穫、それ以外は撤去
+///   R キー         : 建物の向きを 90° 回転（Building のみ有効）
+///   左クリック     : 配置 / 種まき
+///   右クリック     : 収穫（Mature）/ 建物撤去 / 畑タイル撤去
 /// </summary>
 public class GridPlacer : MonoBehaviour
 {
     [Header("配置アイテム（数字キー 1〜9 で切替）")]
     [SerializeField] PlacementItemConfig[] items;
 
-    [Header("地面のレイヤー（Groundレイヤーを設定する）")]
+    [Header("地面のレイヤー（Ground レイヤーを設定する）")]
     [SerializeField] LayerMask groundLayer;
 
-    int selectedIndex = 0;
+    int selectedIndex   = 0;
+    int currentRotation = 0;  // 0=0°, 1=90°, 2=180°, 3=270°
+
     GameObject previewObject;
     Camera mainCamera;
 
@@ -54,6 +58,7 @@ public class GridPlacer : MonoBehaviour
     void Update()
     {
         HandleItemSwitch();
+        HandleRotation();
 
         if (!RaycastToGrid(out int x, out int z))
         {
@@ -67,7 +72,7 @@ public class GridPlacer : MonoBehaviour
         GridCell cell = GridManager.Instance.GetCell(x, z);
         PlacementItemConfig current = items[selectedIndex];
 
-        TintPreview(CanActOnCell(current, cell) ? ColorOk : ColorNg);
+        TintPreview(CanActOnCell(current, cell, x, z) ? ColorOk : ColorNg);
 
         if (Input.GetMouseButtonDown(0)) HandleLeftClick(x, z, current, cell);
         if (Input.GetMouseButtonDown(1)) HandleRightClick(x, z, cell);
@@ -81,9 +86,20 @@ public class GridPlacer : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.Alpha1 + i))
             {
-                selectedIndex = i;
+                selectedIndex   = i;
+                currentRotation = 0;
                 SpawnPreview();
             }
+        }
+    }
+
+    void HandleRotation()
+    {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            currentRotation = (currentRotation + 1) % 4;
+            if (previewObject != null)
+                previewObject.transform.rotation = Quaternion.Euler(0f, currentRotation * 90f, 0f);
         }
     }
 
@@ -92,11 +108,13 @@ public class GridPlacer : MonoBehaviour
         switch (item.type)
         {
             case ItemType.Building:
-                GridManager.Instance.TryPlace(x, z, item.prefab);
+                if (item.buildingData != null)
+                    BuildingManager.Instance.TryPlace(x, z, item.buildingData, currentRotation);
+                else
+                    GridManager.Instance.TryPlace(x, z, item.prefab);
                 break;
 
             case ItemType.Farmland:
-                // 配置に成功したらそのマスを畑フラグONにする
                 if (GridManager.Instance.TryPlace(x, z, item.prefab))
                     cell.SetFarmland(true);
                 break;
@@ -109,21 +127,36 @@ public class GridPlacer : MonoBehaviour
 
     void HandleRightClick(int x, int z, GridCell cell)
     {
-        // 収穫可能な作物があれば収穫を優先する
-        if (cell != null && cell.CropStage == CropStage.Mature)
+        if (cell == null) return;
+
+        // 優先順位：収穫 > 建物撤去 > 畑タイル撤去
+        if (cell.CropStage == CropStage.Mature)
         {
             FarmManager.Instance.TryHarvest(x, z);
             return;
         }
 
-        // それ以外は建物・畑タイルを撤去する
+        if (cell.IsPartOfBuilding)
+        {
+            BuildingManager.Instance.TryRemove(x, z);
+            return;
+        }
+
         GridManager.Instance.TryRemove(x, z);
     }
 
     /// <summary>選択中のアイテムでそのマスを操作できるか判定する。</summary>
-    bool CanActOnCell(PlacementItemConfig item, GridCell cell)
+    bool CanActOnCell(PlacementItemConfig item, GridCell cell, int x, int z)
     {
         if (cell == null) return false;
+
+        if (item.type == ItemType.Building && item.buildingData != null)
+        {
+            BuildingData bd = item.buildingData;
+            int effX = currentRotation % 2 == 0 ? bd.sizeX : bd.sizeZ;
+            int effZ = currentRotation % 2 == 0 ? bd.sizeZ : bd.sizeX;
+            return BuildingManager.Instance.CanPlace(x, z, effX, effZ);
+        }
 
         return item.type switch
         {
@@ -153,14 +186,18 @@ public class GridPlacer : MonoBehaviour
         if (previewObject != null) Destroy(previewObject);
         if (items == null || items.Length == 0) return;
 
-        GameObject prefab = items[selectedIndex].prefab;
+        PlacementItemConfig current = items[selectedIndex];
+        GameObject prefab = (current.type == ItemType.Building && current.buildingData != null)
+            ? current.buildingData.prefab
+            : current.prefab;
+
         if (prefab == null) return;
 
         previewObject = Instantiate(prefab);
+        previewObject.transform.rotation = Quaternion.Euler(0f, currentRotation * 90f, 0f);
 
         foreach (var col in previewObject.GetComponentsInChildren<Collider>())
             col.enabled = false;
-
         foreach (var rb in previewObject.GetComponentsInChildren<Rigidbody>())
             rb.isKinematic = true;
     }
@@ -168,7 +205,20 @@ public class GridPlacer : MonoBehaviour
     void MovePreview(int x, int z)
     {
         if (previewObject == null) return;
-        previewObject.transform.position = GridManager.Instance.GetWorldPosition(x, z);
+
+        PlacementItemConfig current = items[selectedIndex];
+        if (current.type == ItemType.Building && current.buildingData != null)
+        {
+            BuildingData bd = current.buildingData;
+            int effX = currentRotation % 2 == 0 ? bd.sizeX : bd.sizeZ;
+            int effZ = currentRotation % 2 == 0 ? bd.sizeZ : bd.sizeX;
+            previewObject.transform.position = BuildingManager.Instance.GetPlacementCenter(x, z, effX, effZ);
+            previewObject.transform.rotation = Quaternion.Euler(0f, currentRotation * 90f, 0f);
+        }
+        else
+        {
+            previewObject.transform.position = GridManager.Instance.GetWorldPosition(x, z);
+        }
     }
 
     void SetPreviewVisible(bool visible)
