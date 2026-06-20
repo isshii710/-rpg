@@ -106,7 +106,14 @@ public class GridPlacer : MonoBehaviour
 
     void HandleLeftClick(int x, int z, PlacementItemConfig item, GridCell cell)
     {
-        // リソースマス（岩・木）なら採掘を優先（ツール選択に関わらず）
+        // 1. 敵マスなら攻撃（ツール・選択アイテムに関わらず最優先）
+        if (BattleManager.Instance != null && BattleManager.Instance.HasEnemyAt(x, z))
+        {
+            BattleManager.Instance.PlayerAttack(x, z);
+            return;
+        }
+
+        // 2. リソースマス（岩・木）なら採掘
         if (cell != null && cell.IsResource)
         {
             ResourceManager.Instance?.TryMine(x, z);
