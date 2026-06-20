@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>RPG Grid Preview</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background:#0d0d1a; color:#d0d0f0;
+  font-family:'Segoe UI',system-ui,sans-serif;
+  display:flex; flex-direction:column; align-items:center;
+  padding:14px; gap:8px; min-height:100vh;
+}
+h1 { font-size:15px; color:#8888ff; letter-spacing:1px; }
+.toolbar { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+.btn {
+  padding:5px 11px; border:1.5px solid #44445a; background:#1e1e32;
+  color:#aaaacc; border-radius:5px; cursor:pointer; font-size:12px;
+  transition:all .1s; user-select:none;
+}
+.btn:hover { border-color:#6666aa; background:#28283c; color:#ccccee; }
+.btn.active { border-color:#7777ff; background:#2a2a4a; color:#eeeeff; }
+.btn.go { border-color:#44cc77; color:#44cc77; }
+.btn.go.active { background:#1a3a1a; }
+#canvas { border:1.5px solid #333355; border-radius:3px; cursor:crosshair; }
+.status { font-size:11px; color:#777799; min-height:16px; text-align:center; }
+.legend { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; font-size:10px; color:#666688; }
+.li { display:flex; align-items:center; gap:3px; }
+.lb { width:10px; height:10px; border-radius:2px; display:inline-block; flex-shrink:0; }
+</style>
+</head>
+<body>
+<h1>⚙ グリッドシステム プレビュー (10×10)</h1>
+<div class="toolbar">
+  <button class="btn active" id="btn-track"    onclick="setTool('track')">🛤 線路</button>
+  <button class="btn"        id="btn-building" onclick="setTool('building')">🏠 建物(2×2)</button>
+  <button class="btn"        id="btn-farmland" onclick="setTool('farmland')">▪ 畑</button>
+  <button class="btn"        id="btn-seed"     onclick="setTool('seed')">🌱 種まき</button>
+  <button class="btn"        id="btn-remove"   onclick="setTool('remove')">✕ 撤去</button>
+  <button class="btn go"     id="btn-train"    onclick="toggleTrain()">▶ 列車を走らせる</button>
+</div>
+<canvas id="canvas" width="510" height="510"></canvas>
+<div class="status" id="status">ツールを選んでクリック / 右クリック：撤去 / 線路はドラッグ可</div>
+<div class="legend">
+  <div class="li"><span class="lb" style="background:#4a82c4"></span>建物</div>
+  <div class="li"><span class="lb" style="background:#6b3d1e"></span>畑</div>
+  <div class="li"><span class="lb" style="background:#c49a1a"></span>種</div>
+  <div class="li"><span class="lb" style="background:#5a9a4a"></span>若葉</div>
+  <div class="li"><span class="lb" style="background:#2a7a2a"></span>収穫可</div>
+  <div class="li"><span class="lb" style="background:#cccccc"></span>線路</div>
+  <div class="li"><span class="lb" style="background:#00cc66;border-radius:50%"></span>始点</div>
+  <div class="li"><span class="lb" style="background:#ff4444;border-radius:50%"></span>列車</div>
+</div>
+
+<script>
+const CELL=50, W=10, H=10;
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+
+// ---- Data ----
+const grid=Array.from({length:W},(_,x)=>Array.from({length:H},(_,z)=>
+  ({x,z,isTrack:false,isFarmland:false,cropStage:'none',buildingRoot:null,buildingSize:null})));
+const G=(x,z)=>(x>=0&&x<W&&z>=0&&z<H)?grid[x][z]:null;
+const occupied=c=>c.isTrack||c.isFarmland||c.buildingRoot!==null;
+
+let tool='track', hover=null, isDrag=false;
+let trainPath=[], trainT=0, trainDir=1, trainRunning=false, rafId=null, lastMs=0;
+const cropTimers={};
+
+// ---- Tools ----
+function setTool(t){
+  tool=t;
+  document.querySelectorAll('.btn:not(.go)').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+t)?.classList.add('active');
+}
+
+// ---- Track ----
+const getConn=(x,z)=>({
+  north:!!(G(x,z-1)?.isTrack), south:!!(G(x,z+1)?.isTrack),
+  east:!!(G(x+1,z)?.isTrack),  west:!!(G(x-1,z)?.isTrack),
+});
+function placeTrack(x,z){const c=G(x,z);if(!c||occupied(c))return;c.isTrack=true;draw();}
+
+// ---- Building (2×2) ----
+function placeBuilding(rx,rz){
+  for(let dx=0;dx<2;dx++)for(let dz=0;dz<2;dz++){const c=G(rx+dx,rz+dz);if(!c||occupied(c))return;}
+  for(let dx=0;dx<2;dx++)for(let dz=0;dz<2;dz++){
+    const c=G(rx+dx,rz+dz);
+    c.buildingRoot={x:rx,z:rz};
+    if(dx===0&&dz===0)c.buildingSize={w:2,h:2};
+  }
+  draw();
+}
+
+// ---- Farm ----
+function placeFarmland(x,z){const c=G(x,z);if(!c||occupied(c))return;c.isFarmland=true;draw();}
+function plantSeed(x,z){
+  const c=G(x,z);if(!c||!c.isFarmland||c.cropStage!=='none')return;
+  c.cropStage='seed';
+  const k=`${x},${z}`;clearTimeout(cropTimers[k]);
+  cropTimers[k]=setTimeout(()=>{
+    if(c.cropStage==='seed'){c.cropStage='sprout';draw();
+      cropTimers[k]=setTimeout(()=>{
+        if(c.cropStage==='sprout'){c.cropStage='mature';draw();setStatus(`🌾 (${x},${z}) 収穫可能！`);}
+      },4000);
+    }
+  },2000);
+  draw();
+}
+
+// ---- Remove ----
+function removeCell(x,z){
+  const c=G(x,z);if(!c)return;
+  if(c.isTrack){c.isTrack=false;if(trainRunning)stopTrain();}
+  else if(c.buildingRoot){
+    const r=c.buildingRoot,rc=G(r.x,r.z);
+    if(rc?.buildingSize){const{w,h}=rc.buildingSize;
+      for(let dx=0;dx<w;dx++)for(let dz=0;dz<h;dz++){
+        const cc=G(r.x+dx,r.z+dz);if(cc){cc.buildingRoot=null;cc.buildingSize=null;}}}
+  }else if(c.cropStage==='mature'){c.cropStage='none';setStatus(`✅ (${x},${z}) 収穫！`);}
+  else if(c.isFarmland){clearTimeout(cropTimers[`${x},${z}`]);c.isFarmland=false;c.cropStage='none';}
+  draw();
+}
+
+// ---- BFS ----
+function bfs(sx,sz,ex,ez){
+  if(!G(sx,sz)?.isTrack||!G(ex,ez)?.isTrack)return null;
+  const q=[[sx,sz]],vis=new Set([`${sx},${sz}`]),par={};
+  while(q.length){
+    const[cx,cz]=q.shift();
+    if(cx===ex&&cz===ez){
+      const path=[];let cur=`${ex},${ez}`;
+      while(cur){const[a,b]=cur.split(',').map(Number);path.unshift([a,b]);cur=par[cur];}
+      return path;
+    }
+    for(const[dx,dz]of[[0,-1],[0,1],[1,0],[-1,0]]){
+      const k=`${cx+dx},${cz+dz}`;
+      if(!vis.has(k)&&G(cx+dx,cz+dz)?.isTrack){vis.add(k);par[k]=`${cx},${cz}`;q.push([cx+dx,cz+dz]);}
+    }
+  }
+  return null;
+}
+
+// ---- Train ----
+function toggleTrain(){
+  if(trainRunning){stopTrain();return;}
+  const tracks=[],ends=[];
+  for(let x=0;x<W;x++)for(let z=0;z<H;z++){
+    if(grid[x][z].isTrack){
+      tracks.push([x,z]);
+      const cn=getConn(x,z);
+      if([cn.north,cn.south,cn.east,cn.west].filter(Boolean).length<=1)ends.push([x,z]);
+    }
+  }
+  if(tracks.length<2){setStatus('❌ 線路が2マス以上必要です');return;}
+  const[sx,sz]=ends.length>=2?ends[0]:tracks[0];
+  const[ex,ez]=ends.length>=2?ends[ends.length-1]:tracks[tracks.length-1];
+  const path=bfs(sx,sz,ex,ez);
+  if(!path){setStatus('❌ 線路が繋がっていません');return;}
+  trainPath=path;trainT=0;trainDir=1;trainRunning=true;
+  document.getElementById('btn-train').classList.add('active');
+  document.getElementById('btn-train').textContent='⏹ 停止';
+  setStatus(`🚂 列車走行中 (${path.length}マス・往復)`);
+  lastMs=performance.now();rafId=requestAnimationFrame(animTrain);
+}
+function stopTrain(){
+  trainRunning=false;trainPath=[];if(rafId)cancelAnimationFrame(rafId);
+  document.getElementById('btn-train').classList.remove('active');
+  document.getElementById('btn-train').textContent='▶ 列車を走らせる';
+  draw();setStatus('列車を停止しました');
+}
+function animTrain(now){
+  if(!trainRunning)return;
+  const dt=Math.min((now-lastMs)/1000,.1);lastMs=now;
+  trainT+=2.5*trainDir*dt;
+  const mx=trainPath.length-1;
+  if(trainT>=mx){trainT=mx;trainDir=-1;}
+  if(trainT<=0){trainT=0;trainDir=1;}
+  draw();rafId=requestAnimationFrame(animTrain);
+}
+
+function setStatus(m){document.getElementById('status').textContent=m;}
+
+// ---- Draw ----
+const C={
+  bg:'#0d0d1a',cellBg:'#1a1a2c',border:'#2a2a44',
+  building:'#4a82c4',buildBdr:'#6aa2e4',
+  farmBg:'#3d2010',seed:'#c49a1a',sprout:'#5a9a4a',mature:'#2a7a2a',
+  track:'#dddddd',trackBg:'#181828',
+  pathHL:'rgba(255,220,60,.15)',trainGlow:'rgba(255,80,80,.3)',train:'#ff4444',
+  startDot:'#00cc66',endDot:'#ff4488',
+};
+
+function draw(){
+  ctx.clearRect(0,0,510,510);
+  ctx.fillStyle=C.bg;ctx.fillRect(0,0,510,510);
+  for(let x=0;x<W;x++)for(let z=0;z<H;z++)drawCell(x,z);
+  // Path highlight
+  for(const[px,pz]of trainPath){
+    ctx.fillStyle=C.pathHL;ctx.fillRect(px*CELL+2,pz*CELL+2,CELL-4,CELL-4);
+  }
+  // Endpoints
+  if(trainPath.length>=2){
+    const[[sx,sz],[ex,ez]]=[trainPath[0],trainPath[trainPath.length-1]];
+    ctx.fillStyle=C.startDot;ctx.beginPath();
+    ctx.arc(sx*CELL+CELL/2,sz*CELL+CELL/2,6,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=C.endDot;ctx.beginPath();
+    ctx.arc(ex*CELL+CELL/2,ez*CELL+CELL/2,6,0,Math.PI*2);ctx.fill();
+  }
+  // Train
+  if(trainRunning&&trainPath.length>=2){
+    const i=Math.min(Math.floor(trainT),trainPath.length-2);
+    const f=trainT-i;
+    const[ax,az]=trainPath[i],[bx,bz]=trainPath[Math.min(i+1,trainPath.length-1)];
+    const tx=(ax+(bx-ax)*f)*CELL+CELL/2,tz=(az+(bz-az)*f)*CELL+CELL/2;
+    const g=ctx.createRadialGradient(tx,tz,0,tx,tz,18);
+    g.addColorStop(0,C.trainGlow);g.addColorStop(1,'transparent');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(tx,tz,18,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=C.train;ctx.beginPath();ctx.arc(tx,tz,7,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,160,160,.8)';ctx.lineWidth=1.5;ctx.stroke();
+  }
+  // Hover
+  if(hover){
+    ctx.strokeStyle='rgba(255,255,255,.22)';ctx.lineWidth=2;
+    ctx.strokeRect(hover.x*CELL+1,hover.z*CELL+1,CELL-2,CELL-2);
+  }
+}
+
+function drawCell(x,z){
+  const c=grid[x][z],px=x*CELL,pz=z*CELL;
+  ctx.fillStyle=C.cellBg;ctx.fillRect(px,pz,CELL,CELL);
+  ctx.strokeStyle=C.border;ctx.lineWidth=.5;ctx.strokeRect(px+.5,pz+.5,CELL-1,CELL-1);
+
+  if(c.buildingRoot){
+    const r=c.buildingRoot;
+    if(r.x===x&&r.z===z&&c.buildingSize){
+      const{w,h}=c.buildingSize;
+      ctx.fillStyle=C.building+'44';ctx.fillRect(px+2,pz+2,CELL*w-4,CELL*h-4);
+      ctx.strokeStyle=C.buildBdr;ctx.lineWidth=2;ctx.strokeRect(px+2,pz+2,CELL*w-4,CELL*h-4);
+      ctx.font=`${Math.floor(CELL*.44)}px sans-serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('🏠',px+CELL*w/2,pz+CELL*h/2);
+    }
+    return;
+  }
+  if(c.isFarmland){
+    ctx.fillStyle=C.farmBg;ctx.fillRect(px+2,pz+2,CELL-4,CELL-4);
+    if(c.cropStage!=='none'){
+      const m={seed:{col:C.seed,r:6,e:'🌰'},sprout:{col:C.sprout,r:11,e:'🌿'},mature:{col:C.mature,r:17,e:'🌾'}}[c.cropStage];
+      const cx=px+CELL/2,cz=pz+CELL/2;
+      ctx.fillStyle=m.col+'88';ctx.beginPath();ctx.arc(cx,cz,m.r,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=m.col;ctx.beginPath();ctx.arc(cx,cz,m.r*.65,0,Math.PI*2);ctx.fill();
+      ctx.font=`${Math.floor(CELL*.3)}px sans-serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(m.e,cx,cz);
+    }
+    return;
+  }
+  if(c.isTrack){
+    ctx.fillStyle=C.trackBg;ctx.fillRect(px+2,pz+2,CELL-4,CELL-4);
+    const cn=getConn(x,z),cx=px+CELL/2,cz=pz+CELL/2;
+    ctx.strokeStyle=C.track;ctx.lineWidth=3.5;ctx.lineCap='round';ctx.beginPath();
+    if(cn.north||cn.south||cn.east||cn.west){
+      if(cn.north){ctx.moveTo(cx,cz);ctx.lineTo(cx,pz);}
+      if(cn.south){ctx.moveTo(cx,cz);ctx.lineTo(cx,pz+CELL);}
+      if(cn.east ){ctx.moveTo(cx,cz);ctx.lineTo(px+CELL,cz);}
+      if(cn.west ){ctx.moveTo(cx,cz);ctx.lineTo(px,cz);}
+    }else{
+      ctx.moveTo(cx-9,cz);ctx.lineTo(cx+9,cz);
+      ctx.moveTo(cx,cz-9);ctx.lineTo(cx,cz+9);
+    }
+    ctx.stroke();
+    ctx.fillStyle=C.track;ctx.beginPath();ctx.arc(cx,cz,3.5,0,Math.PI*2);ctx.fill();
+  }
+}
+
+// ---- Input ----
+const pos=e=>{const r=canvas.getBoundingClientRect(),x=Math.floor((e.clientX-r.left)/CELL),z=Math.floor((e.clientY-r.top)/CELL);return(x>=0&&x<W&&z>=0&&z<H)?{x,z}:null;};
+const act=(x,z)=>{
+  if(tool==='track')placeTrack(x,z);
+  else if(tool==='building')placeBuilding(x,z);
+  else if(tool==='farmland')placeFarmland(x,z);
+  else if(tool==='seed')plantSeed(x,z);
+  else if(tool==='remove')removeCell(x,z);
+};
+canvas.addEventListener('mousedown',e=>{if(e.button!==0)return;isDrag=true;const p=pos(e);if(p)act(p.x,p.z);});
+canvas.addEventListener('mouseup',()=>isDrag=false);
+canvas.addEventListener('mousemove',e=>{
+  const p=pos(e);hover=p;
+  if(isDrag&&p&&(tool==='track'||tool==='remove'))act(p.x,p.z);
+  if(p){
+    const c=grid[p.x][p.z];
+    let info=`マス(${p.x},${p.z})`;
+    if(c.isTrack){const cn=getConn(p.x,p.z);const d=Object.entries(cn).filter(([,v])=>v).map(([k])=>k).join(', ');info+=` ┃ 線路 [接続: ${d||'なし'}]`;}
+    else if(c.buildingRoot)info+=' ┃ 建物';
+    else if(c.isFarmland)info+=` ┃ 畑 [${{none:'空き',seed:'種',sprout:'若葉',mature:'収穫可能'}[c.cropStage]}]`;
+    else info+=' ┃ 空き';
+    setStatus(info);
+  }
+  draw();
+});
+canvas.addEventListener('mouseleave',()=>{hover=null;draw();});
+canvas.addEventListener('contextmenu',e=>{e.preventDefault();const p=pos(e);if(p)removeCell(p.x,p.z);});
+
+draw();
+</script>
+</body>
+</html>
