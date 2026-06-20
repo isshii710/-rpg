@@ -9,6 +9,7 @@ public enum ItemType
     Building,  // 建物（BuildingDataを使う）
     Farmland,  // 畑タイル（配置後に農業が可能になる）
     Seed,      // 種（畑マスにのみ植えられる）
+    Track,     // 線路（RailManager が接続と見た目を自動管理する）
 }
 
 /// <summary>
@@ -29,8 +30,8 @@ public class PlacementItemConfig
 /// 【操作】
 ///   数字キー 1〜9  : アイテム切り替え
 ///   R キー         : 建物の向きを 90° 回転（Building のみ有効）
-///   左クリック     : 配置 / 種まき
-///   右クリック     : 収穫（Mature）/ 建物撤去 / 畑タイル撤去
+///   左クリック     : 配置 / 種まき / 線路敷設
+///   右クリック     : 収穫（Mature）/ 線路撤去 / 建物撤去 / 畑タイル撤去
 /// </summary>
 public class GridPlacer : MonoBehaviour
 {
@@ -122,6 +123,10 @@ public class GridPlacer : MonoBehaviour
             case ItemType.Seed:
                 FarmManager.Instance.TryPlantSeed(x, z);
                 break;
+
+            case ItemType.Track:
+                RailManager.Instance.TryPlaceTrack(x, z);
+                break;
         }
     }
 
@@ -129,10 +134,16 @@ public class GridPlacer : MonoBehaviour
     {
         if (cell == null) return;
 
-        // 優先順位：収穫 > 建物撤去 > 畑タイル撤去
+        // 優先順位：収穫 > 線路撤去 > 建物撤去 > 畑タイル撤去
         if (cell.CropStage == CropStage.Mature)
         {
             FarmManager.Instance.TryHarvest(x, z);
+            return;
+        }
+
+        if (cell.IsTrack)
+        {
+            RailManager.Instance.TryRemoveTrack(x, z);
             return;
         }
 
@@ -163,6 +174,7 @@ public class GridPlacer : MonoBehaviour
             ItemType.Building => !cell.IsOccupied,
             ItemType.Farmland => !cell.IsOccupied,
             ItemType.Seed     => cell.IsFarmland && !cell.HasCrop,
+            ItemType.Track    => !cell.IsOccupied,
             _                 => false,
         };
     }
