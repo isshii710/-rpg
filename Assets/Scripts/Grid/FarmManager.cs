@@ -61,6 +61,7 @@ public class FarmManager : MonoBehaviour
 
         // インベントリに野菜を追加
         InventoryManager.Instance?.AddItem(ItemId.Vegetable);
+        StoryManager.Instance?.OnVegetableHarvested();
         Debug.Log($"[FarmManager] 収穫成功！ マス({x},{z}) → 野菜をインベントリに追加");
         return true;
     }

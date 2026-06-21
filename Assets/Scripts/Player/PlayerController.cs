@@ -76,6 +76,16 @@ public class PlayerController : MonoBehaviour
                               BattleManager.Instance.HasEnemyAt(newX, newZ);
         if (target.IsOccupied && !blockedByEnemy) return;
 
+        // 荒野ゲートチェック（修行未完了なら荒野への移動をブロック）
+        if (BattleManager.Instance != null && BattleManager.Instance.IsWilderness(newX, newZ))
+        {
+            if (StoryManager.Instance != null && !StoryManager.Instance.CanLeaveVillage)
+            {
+                StoryManager.Instance.NotifyBlockedAtGate();
+                return;
+            }
+        }
+
         // ---- 移動確定 ----
         GridX = newX;
         GridZ = newZ;
