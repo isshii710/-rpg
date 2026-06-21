@@ -25,4 +25,8 @@ public class EnemyData : ScriptableObject
 
     [Header("見た目（省略時はデバッグ用カプセルで代用）")]
     public GameObject prefab;
+
+    [Header("チュートリアル設定")]
+    [Tooltip("true にすると StoryManager の戦闘修行クエストのカウント対象になる")]
+    public bool isTutorialEnemy = false;
 }

@@ -94,6 +94,7 @@ public class ResourceManager : MonoBehaviour
 
         // インベントリにドロップ
         InventoryManager.Instance?.AddItem(drop);
+        if (drop == ItemId.Stone) StoryManager.Instance?.OnStoneMined();
 
         Debug.Log($"[ResourceManager] ({x},{z}) {type} を破壊！ → {drop} を入手");
     }

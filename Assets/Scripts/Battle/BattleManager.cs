@@ -91,7 +91,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    void SpawnEnemy(EnemyData data, int x, int z)
+    public void SpawnEnemy(EnemyData data, int x, int z)
     {
         Vector3 pos = GridManager.Instance.GetWorldPosition(x, z) + Vector3.up * 0.5f;
 
@@ -133,6 +133,7 @@ public class BattleManager : MonoBehaviour
         // 報酬付与
         InventoryManager.Instance?.AddGold(enemy.Data.goldReward);
         PartyManager.Instance?.AddExperience(enemy.Data.expReward);
+        StoryManager.Instance?.OnEnemyDefeated(enemy.Data);
 
         // グリッドからオブジェクトを除去
         GridCell cell = GridManager.Instance.GetCell(x, z);
