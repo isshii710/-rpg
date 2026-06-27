@@ -61,6 +61,13 @@ public class GridPlacer : MonoBehaviour
         HandleItemSwitch();
         HandleRotation();
 
+        // アイテムが未設定なら何もしない
+        if (items == null || items.Length == 0)
+        {
+            SetPreviewVisible(false);
+            return;
+        }
+
         if (!RaycastToGrid(out int x, out int z))
         {
             SetPreviewVisible(false);
