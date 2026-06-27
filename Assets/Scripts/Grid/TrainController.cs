@@ -32,7 +32,10 @@ public class TrainController : MonoBehaviour
     [SerializeField] float rotateSpeed  = 360f;   // 方向転換の速度（度/秒）
     [SerializeField] TrainMode mode     = TrainMode.Bounce;
 
-    List<Vector3> route;
+    List<Vector3>    route;
+    List<Vector2Int> gridRoute;          // グリッド座標列（終点判定に使う）
+    bool skipFirstArrival = true;        // 起動直後の初期位置では交易を発火しない
+
     int   waypointIndex  = 0;
     bool  movingForward  = true;
     bool  isRunning      = false;
@@ -62,6 +65,9 @@ public class TrainController : MonoBehaviour
             isRunning = false;
             return;
         }
+
+        gridRoute         = gridPath;   // グリッド座標を保持しておく
+        skipFirstArrival  = true;       // 再構築時も初回スキップをリセット
 
         List<Vector3> worldPath = RailManager.Instance.GridPathToWorld(gridPath);
 
@@ -109,6 +115,10 @@ public class TrainController : MonoBehaviour
 
     void AdvanceWaypoint()
     {
+        // 列車が waypointIndex に到着した瞬間 → 終点なら交易通知
+        if (!skipFirstArrival) NotifyArrivalIfTerminal(waypointIndex);
+        skipFirstArrival = false;
+
         switch (mode)
         {
             case TrainMode.Loop:
@@ -128,6 +138,20 @@ public class TrainController : MonoBehaviour
                     isRunning = false;  // 終点で停止
                 break;
         }
+    }
+
+    // ================================================================
+    //  交易通知
+    // ================================================================
+
+    void NotifyArrivalIfTerminal(int idx)
+    {
+        if (gridRoute == null || gridRoute.Count < 2) return;
+        // 始点（0）または終点（Count-1）に到達したときだけ通知
+        if (idx != 0 && idx != gridRoute.Count - 1) return;
+
+        Vector2Int gp = gridRoute[idx];
+        TradeManager.Instance?.OnTrainArrived(gp.x, gp.y);
     }
 
     // ================================================================
