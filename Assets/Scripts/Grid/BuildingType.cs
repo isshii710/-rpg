@@ -8,4 +8,5 @@ public enum BuildingType
     Workshop,     // 作業場・工房
     Storage,      // 倉庫
     Decoration,   // 装飾物
+    TradePost,    // 交易所（列車の終点隣に置くと自動交易が発動）
 }

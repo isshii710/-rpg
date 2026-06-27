@@ -21,4 +21,5 @@ public enum ItemId
     Workshop      = 31,
     Storage       = 32,
     Decoration    = 33,
+    TradePost     = 40,   // 交易所
 }

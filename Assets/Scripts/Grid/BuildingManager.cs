@@ -9,6 +9,9 @@ public class BuildingManager : MonoBehaviour
 {
     public static BuildingManager Instance { get; private set; }
 
+    // (rootX, rootZ) → 配置した BuildingData の逆引きテーブル
+    readonly Dictionary<(int, int), BuildingData> buildingDataMap = new();
+
     void Awake()
     {
         if (Instance != null) { Destroy(gameObject); return; }
@@ -64,6 +67,7 @@ public class BuildingManager : MonoBehaviour
             }
 
         rootCell.RegisterFootprint(footprint);
+        buildingDataMap[(rootX, rootZ)] = data;
         return true;
     }
 
@@ -84,10 +88,28 @@ public class BuildingManager : MonoBehaviour
         foreach (var c in footprint)
             c.ClearBuilding();
 
+        buildingDataMap.Remove((root.X, root.Z));
         Destroy(root.PlacedObject);
         root.ClearPlacedObject();
         return true;
     }
+
+    // ---- 交易所チェック ----
+
+    /// <summary>指定マスの建物の BuildingData を返す。建物がなければ null。</summary>
+    public BuildingData GetBuildingDataAt(int x, int z)
+    {
+        GridCell cell = GridManager.Instance.GetCell(x, z);
+        if (cell == null || !cell.IsPartOfBuilding) return null;
+        GridCell root = cell.BuildingRoot;
+        if (root == null) return null;
+        buildingDataMap.TryGetValue((root.X, root.Z), out var data);
+        return data;
+    }
+
+    /// <summary>指定マスが交易所建物かどうかを返す。</summary>
+    public bool IsTradePost(int x, int z) =>
+        GetBuildingDataAt(x, z)?.type == BuildingType.TradePost;
 
     // ---- ユーティリティ ----
 
