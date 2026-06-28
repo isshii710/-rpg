@@ -66,6 +66,10 @@ public static class GameSetup
         // MinimapUI
         CreateChild(managers, "MinimapUI").AddComponent<MinimapUI>();
 
+        // BuildModeManager + BuildUI（モジュール建築）
+        CreateChild(managers, "BuildModeManager").AddComponent<BuildModeManager>();
+        CreateChild(managers, "BuildUI").AddComponent<BuildUI>();
+
         // ================================================================
         //  プレイヤー（青いカプセル）
         // ================================================================
