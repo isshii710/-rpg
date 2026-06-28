@@ -92,14 +92,22 @@ public static class GameSetup
         // GridPlacer がレイキャストする "Default" レイヤーのまま
 
         // ================================================================
-        //  カメラ（斜め見下ろし 2.5D）
+        //  カメラ（プレイヤー追従・斜め見下ろし 2.5D）
         // ================================================================
 
         var cam = Camera.main;
         if (cam != null)
         {
-            cam.transform.position = new Vector3(5f, 12f, -2f);
-            cam.transform.rotation = Quaternion.Euler(65f, 0f, 0f);
+            cam.transform.position = new Vector3(5f, 7f, -0.5f);
+            cam.transform.rotation = Quaternion.Euler(45f, 0f, 0f);
+
+            // CameraFollow をアタッチしてプレイヤーを追従させる
+            var follow = cam.gameObject.GetComponent<CameraFollow>()
+                      ?? cam.gameObject.AddComponent<CameraFollow>();
+
+            var followSO = new SerializedObject(follow);
+            followSO.FindProperty("target").objectReferenceValue = playerGO.transform;
+            followSO.ApplyModifiedProperties();
         }
 
         // シーンを「変更あり」にしてCtrl+Sで保存できるようにする
