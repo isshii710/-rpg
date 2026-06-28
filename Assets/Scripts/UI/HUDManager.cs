@@ -1,89 +1,115 @@
 using UnityEngine;
-using UnityEngine.UI;
 
 /// <summary>
-/// ゲーム中の HUD を更新する MonoBehaviour。
-/// Canvas 直下の各 Text を Inspector でアサインする。
+/// OnGUI を使った HUD 表示。Canvas・パッケージ不要。
+/// Managers の子に HUDManager GameObject を置くだけで動く。
 /// </summary>
 public class HUDManager : MonoBehaviour
 {
     public static HUDManager Instance { get; private set; }
 
-    [Header("ゴールド（右上）")]
-    [SerializeField] Text goldText;
-
-    [Header("クエスト進捗（左上）")]
-    [SerializeField] Text harvestQuestText;
-    [SerializeField] Text miningQuestText;
-    [SerializeField] Text combatQuestText;
-    [SerializeField] Text leaveStatusText;
-
-    [Header("パーティ HP（左下）")]
-    [SerializeField] Text partyHPText;
-
-    [Header("選択中アイテム（下中央）")]
-    [SerializeField] Text selectedItemText;
+    GUIStyle styleNormal;
+    GUIStyle styleGold;
+    GUIStyle styleGreen;
+    GUIStyle styleItem;
 
     void Awake()
     {
         Instance = this;
     }
 
-    void Update()
+    void Start()
     {
-        UpdateGold();
-        UpdateQuests();
-        UpdatePartyHP();
-        UpdateSelectedItem();
+        styleNormal = new GUIStyle(GUI.skin.label)
+        {
+            fontSize  = 20,
+            fontStyle = FontStyle.Bold,
+        };
+        styleNormal.normal.textColor = Color.white;
+
+        styleGold = new GUIStyle(styleNormal);
+        styleGold.normal.textColor = new Color(1f, 0.9f, 0.1f);
+        styleGold.alignment = TextAnchor.UpperRight;
+
+        styleGreen = new GUIStyle(styleNormal);
+        styleGreen.normal.textColor = new Color(0.5f, 1f, 0.5f);
+
+        styleItem = new GUIStyle(styleNormal)
+        {
+            fontSize  = 26,
+            alignment = TextAnchor.LowerCenter,
+        };
+        styleItem.normal.textColor = new Color(1f, 1f, 0.5f);
     }
 
-    void UpdateGold()
+    void OnGUI()
     {
-        if (goldText == null) return;
-        var inv = InventoryManager.Instance;
+        DrawGold();
+        DrawQuests();
+        DrawPartyHP();
+        DrawSelectedItem();
+    }
+
+    void DrawGold()
+    {
+        var inv  = InventoryManager.Instance;
         int gold = inv != null ? inv.Gold : 0;
-        goldText.text = $"G {gold}";
+        // 右上
+        GUI.Label(new Rect(Screen.width - 210, 10, 200, 36),
+                  $"G  {gold}", styleGold);
     }
 
-    void UpdateQuests()
+    void DrawQuests()
     {
         var sm = StoryManager.Instance;
         if (sm == null) return;
 
-        if (harvestQuestText != null && sm.HarvestQuest != null)
-            harvestQuestText.text = QuestLine(sm.HarvestQuest);
+        float y = 10f;
+        if (sm.HarvestQuest != null)
+        {
+            GUI.Label(new Rect(10, y, 520, 30), QuestLine(sm.HarvestQuest), styleNormal);
+            y += 32;
+        }
+        if (sm.MiningQuest != null)
+        {
+            GUI.Label(new Rect(10, y, 520, 30), QuestLine(sm.MiningQuest), styleNormal);
+            y += 32;
+        }
+        if (sm.CombatQuest != null)
+        {
+            GUI.Label(new Rect(10, y, 520, 30), QuestLine(sm.CombatQuest), styleNormal);
+            y += 32;
+        }
 
-        if (miningQuestText != null && sm.MiningQuest != null)
-            miningQuestText.text = QuestLine(sm.MiningQuest);
-
-        if (combatQuestText != null && sm.CombatQuest != null)
-            combatQuestText.text = QuestLine(sm.CombatQuest);
-
-        if (leaveStatusText != null)
-            leaveStatusText.text = sm.CanLeaveVillage ? "旅立ち：解放済み" : "旅立ち：修行中...";
+        string leaveLabel = sm.CanLeaveVillage ? "旅立ち：解放済み" : "旅立ち：修行中...";
+        GUI.Label(new Rect(10, y, 400, 30), leaveLabel, styleGreen);
     }
 
-    void UpdatePartyHP()
+    void DrawPartyHP()
     {
-        if (partyHPText == null) return;
         var pm = PartyManager.Instance;
-        if (pm == null) { partyHPText.text = ""; return; }
+        if (pm == null) return;
 
-        var members = pm.Members;
-        if (members == null || members.Count == 0) { partyHPText.text = ""; return; }
-
-        var sb = new System.Text.StringBuilder();
-        foreach (var m in members)
-            sb.AppendLine($"{m.characterName} HP{m.currentHp}/{m.maxHp}");
-
-        partyHPText.text = sb.ToString().TrimEnd();
+        float y = Screen.height - 130f;
+        foreach (var m in pm.Members)
+        {
+            GUI.Label(new Rect(10, y, 300, 28),
+                      $"{m.characterName}  HP {m.currentHp}/{m.maxHp}", styleNormal);
+            y += 30;
+        }
     }
 
-    void UpdateSelectedItem()
+    void DrawSelectedItem()
     {
-        if (selectedItemText == null) return;
         var gp = GridPlacer.Instance;
-        selectedItemText.text = gp != null ? $"[ {gp.SelectedItemLabel} ]" : "";
+        if (gp == null) return;
+
+        string label = gp.SelectedItemLabel;
+        if (string.IsNullOrEmpty(label)) return;
+
+        float w = 300f;
+        GUI.Label(new Rect((Screen.width - w) * 0.5f, Screen.height - 50, w, 44),
+                  $"[ {label} ]", styleItem);
     }
 
     static string QuestLine(QuestStep q)
