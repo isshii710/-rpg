@@ -43,6 +43,10 @@ public class StoryManager : MonoBehaviour
     /// <summary>true になったら荒野への移動が解放される。</summary>
     public bool CanLeaveVillage { get; private set; } = false;
 
+    public QuestStep HarvestQuest => harvestQuest;
+    public QuestStep MiningQuest  => miningQuest;
+    public QuestStep CombatQuest  => combatQuest;
+
     // ================================================================
     //  初期化
     // ================================================================

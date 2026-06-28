@@ -35,6 +35,8 @@ public class PlacementItemConfig
 /// </summary>
 public class GridPlacer : MonoBehaviour
 {
+    public static GridPlacer Instance { get; private set; }
+
     [Header("配置アイテム（数字キー 1〜9 で切替）")]
     [SerializeField] PlacementItemConfig[] items;
 
@@ -44,11 +46,18 @@ public class GridPlacer : MonoBehaviour
     int selectedIndex   = 0;
     int currentRotation = 0;  // 0=0°, 1=90°, 2=180°, 3=270°
 
+    public string SelectedItemLabel => (items != null && items.Length > 0) ? items[selectedIndex].label : "";
+
     GameObject previewObject;
     Camera mainCamera;
 
     static readonly Color ColorOk = new Color(0f, 1f, 0f, 0.5f);
     static readonly Color ColorNg = new Color(1f, 0f, 0f, 0.5f);
+
+    void Awake()
+    {
+        Instance = this;
+    }
 
     void Start()
     {
