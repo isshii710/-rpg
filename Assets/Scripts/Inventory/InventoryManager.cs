@@ -163,6 +163,24 @@ public class InventoryManager : MonoBehaviour
     }
 
     // ================================================================
+    //  セーブ/ロード用API
+    // ================================================================
+
+    public void ClearForLoad()
+    {
+        gold = 0;
+        items.Clear();
+    }
+
+    public void RestoreGold(int amount) => gold = amount;
+
+    public void RestoreItem(ItemId id, int count)
+    {
+        if (id == ItemId.None || count <= 0) return;
+        items[id] = count;
+    }
+
+    // ================================================================
     //  デバッグ
     // ================================================================
 

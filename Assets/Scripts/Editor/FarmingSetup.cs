@@ -51,9 +51,10 @@ public static class FarmingSetup
             if (fm != null)
             {
                 var so = new SerializedObject(fm);
-                so.FindProperty("seedPrefab").objectReferenceValue   = seedPrefab;
-                so.FindProperty("sproutPrefab").objectReferenceValue = sproutPrefab;
-                so.FindProperty("maturePrefab").objectReferenceValue = maturePrefab;
+                so.FindProperty("seedPrefab").objectReferenceValue    = seedPrefab;
+                so.FindProperty("sproutPrefab").objectReferenceValue  = sproutPrefab;
+                so.FindProperty("maturePrefab").objectReferenceValue  = maturePrefab;
+                so.FindProperty("farmlandPrefab").objectReferenceValue = farmlandPrefab;
                 so.ApplyModifiedProperties();
                 Debug.Log("[FarmingSetup] FarmManager にプレハブをセットしました。");
             }

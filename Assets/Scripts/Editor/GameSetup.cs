@@ -57,6 +57,9 @@ public static class GameSetup
         // TradeManager
         CreateChild(managers, "TradeManager").AddComponent<TradeManager>();
 
+        // SaveManager
+        CreateChild(managers, "SaveManager").AddComponent<SaveManager>();
+
         // ================================================================
         //  プレイヤー（青いカプセル）
         // ================================================================

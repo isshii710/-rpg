@@ -11,6 +11,7 @@ public class BuildingManager : MonoBehaviour
 
     // (rootX, rootZ) → 配置した BuildingData の逆引きテーブル
     readonly Dictionary<(int, int), BuildingData> buildingDataMap = new();
+    readonly Dictionary<(int,int), int> rotationMap = new();
 
     void Awake()
     {
@@ -68,6 +69,7 @@ public class BuildingManager : MonoBehaviour
 
         rootCell.RegisterFootprint(footprint);
         buildingDataMap[(rootX, rootZ)] = data;
+        rotationMap[(rootX, rootZ)] = rotation;
         return true;
     }
 
@@ -89,6 +91,7 @@ public class BuildingManager : MonoBehaviour
             c.ClearBuilding();
 
         buildingDataMap.Remove((root.X, root.Z));
+        rotationMap.Remove((root.X, root.Z));
         Destroy(root.PlacedObject);
         root.ClearPlacedObject();
         return true;
@@ -110,6 +113,16 @@ public class BuildingManager : MonoBehaviour
     /// <summary>指定マスが交易所建物かどうかを返す。</summary>
     public bool IsTradePost(int x, int z) =>
         GetBuildingDataAt(x, z)?.type == BuildingType.TradePost;
+
+    /// <summary>配置済みすべての建物を (rootX, rootZ, rotation, data) で列挙する。</summary>
+    public System.Collections.Generic.IEnumerable<(int rootX, int rootZ, int rotation, BuildingData data)> GetAllPlacements()
+    {
+        foreach (var kv in buildingDataMap)
+        {
+            rotationMap.TryGetValue(kv.Key, out int rot);
+            yield return (kv.Key.Item1, kv.Key.Item2, rot, kv.Value);
+        }
+    }
 
     // ---- ユーティリティ ----
 
