@@ -75,6 +75,13 @@ public class GridManager : MonoBehaviour
     public bool IsValid(int x, int z) =>
         x >= 0 && x < width && z >= 0 && z < height;
 
+    public System.Collections.Generic.IEnumerable<GridCell> AllCells()
+    {
+        for (int x = 0; x < width; x++)
+            for (int z = 0; z < height; z++)
+                yield return cells[x, z];
+    }
+
     /// <summary>グリッド座標 → ワールド座標（マスの左下隅）</summary>
     public Vector3 GetWorldPosition(int x, int z) =>
         originPosition + new Vector3((x + 0.5f) * cellSize, 0f, (z + 0.5f) * cellSize);

@@ -125,6 +125,16 @@ public class StoryManager : MonoBehaviour
         PrintQuestStatus();
     }
 
+    /// <summary>セーブデータからクエスト進捗を復元する。</summary>
+    public void RestoreQuestProgress(int harvest, int mining, int combat)
+    {
+        harvestQuest.current = Mathf.Clamp(harvest, 0, harvestQuest.required);
+        miningQuest.current  = Mathf.Clamp(mining,  0, miningQuest.required);
+        combatQuest.current  = Mathf.Clamp(combat,  0, combatQuest.required);
+        if (harvestQuest.IsComplete && miningQuest.IsComplete && combatQuest.IsComplete)
+            CanLeaveVillage = true;
+    }
+
     // ================================================================
     //  デバッグ
     // ================================================================

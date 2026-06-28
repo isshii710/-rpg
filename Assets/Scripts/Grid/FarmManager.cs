@@ -13,6 +13,7 @@ public class FarmManager : MonoBehaviour
     [SerializeField] GameObject seedPrefab;
     [SerializeField] GameObject sproutPrefab;
     [SerializeField] GameObject maturePrefab;
+    [SerializeField] GameObject farmlandPrefab;
 
     [Header("成長時間（秒）— テスト中は小さい値にすると確認しやすい")]
     [SerializeField] float seedToSproutSeconds   = 5f;
@@ -97,5 +98,35 @@ public class FarmManager : MonoBehaviour
         Vector3 pos = GridManager.Instance.GetWorldPosition(cell.X, cell.Z);
         GameObject newObj = Instantiate(nextPrefab, pos, Quaternion.identity);
         cell.AdvanceTo(nextStage, newObj);
+    }
+
+    // ---- セーブ/ロード用の復元API ----
+
+    public bool RestoreFarmland(int x, int z)
+    {
+        if (farmlandPrefab == null) return false;
+        var cell = GridManager.Instance.GetCell(x, z);
+        if (cell == null || cell.IsOccupied) return false;
+        var obj = Instantiate(farmlandPrefab, GridManager.Instance.GetWorldPosition(x, z), Quaternion.identity);
+        cell.Place(obj);
+        cell.SetFarmland(true);
+        return true;
+    }
+
+    public bool RestoreCrop(int x, int z, CropStage stage)
+    {
+        var cell = GridManager.Instance.GetCell(x, z);
+        if (cell == null || !cell.IsFarmland || stage == CropStage.None) return false;
+        GameObject prefab = stage switch
+        {
+            CropStage.Seed    => seedPrefab,
+            CropStage.Sprout  => sproutPrefab,
+            CropStage.Mature  => maturePrefab,
+            _ => null,
+        };
+        if (prefab == null) return false;
+        var obj = Instantiate(prefab, GridManager.Instance.GetWorldPosition(x, z), Quaternion.identity);
+        cell.AdvanceTo(stage, obj);
+        return true;
     }
 }
