@@ -1,29 +1,27 @@
 using UnityEngine;
 
 /// <summary>
-/// RPG 風ステータスパネル HUD（OnGUI 方式・パッケージ不要）。
-/// 画面下部にパネルを描画する縦画面レイアウト。
+/// RPG 風コーナーHUD（PC横画面対応）。
+/// 左上：クエスト / 右上：ゴールド / 左下：パーティHP / 下中央：選択アイテム
 /// </summary>
 public class HUDManager : MonoBehaviour
 {
     public static HUDManager Instance { get; private set; }
 
-    // ---- テクスチャ ----
-    Texture2D texPanelBg;   // 濃紺半透明
-    Texture2D texBorder;    // ゴールドボーダー
-    Texture2D texDivider;   // 区切り線
-    Texture2D texHPFull;    // HP バー（緑）
-    Texture2D texHPLow;     // HP バー（赤）
-    Texture2D texHPBg;      // HP バー背景（暗）
+    Texture2D texBg;
+    Texture2D texBorder;
+    Texture2D texHPFull;
+    Texture2D texHPLow;
+    Texture2D texHPBg;
 
-    // ---- スタイル ----
+    GUIStyle styleTitle;
     GUIStyle styleQuest;
     GUIStyle styleQuestDone;
     GUIStyle styleGold;
+    GUIStyle styleGoldNum;
     GUIStyle styleLeave;
     GUIStyle styleHPName;
     GUIStyle styleItem;
-    GUIStyle styleSectionTitle;
     bool ready;
 
     void Awake() => Instance = this;
@@ -32,139 +30,150 @@ public class HUDManager : MonoBehaviour
     {
         if (!ready) Init();
 
-        float sw = Screen.width;
-        float sh = Screen.height;
+        DrawQuestPanel();
+        DrawGoldPanel();
+        DrawPartyPanel();
+        DrawItemBar();
+    }
 
-        // パネルの高さ：画面の 42%（縦画面でも横画面でも適切）
-        float panelH = sh * 0.42f;
-        float panelY = sh - panelH;
-
-        // ── 背景パネル ──────────────────────────────────────────
-        DrawTex(0, panelY, sw, panelH, texPanelBg);
-        DrawTex(0, panelY, sw, 4,      texBorder);   // 上ボーダー（金）
-
-        // ── 上段：クエスト（左）＋ ゴールド（右） ───────────────
-        float padX = sw * 0.04f;
-        float topY = panelY + 12;
-        float questW = sw * 0.6f;
-        float goldX  = sw * 0.64f;
-
-        // セクションタイトル
-        GUI.Label(new Rect(padX, topY, 200, 24), "◆ 修行クエスト", styleSectionTitle);
-        topY += 26;
-
+    // ── 左上：クエストパネル ────────────────────────────────────
+    void DrawQuestPanel()
+    {
         var sm = StoryManager.Instance;
-        if (sm != null)
-        {
-            topY = DrawQuestLine(padX, topY, questW, sm.HarvestQuest, topY);
-            topY = DrawQuestLine(padX, topY, questW, sm.MiningQuest,  topY);
-            topY = DrawQuestLine(padX, topY, questW, sm.CombatQuest,  topY);
+        if (sm == null) return;
 
-            string leaveStr = sm.CanLeaveVillage ? "★ 旅立ち解放！" : "旅立ち：修行中...";
-            GUI.Label(new Rect(padX, topY, questW, 26), leaveStr, styleLeave);
-        }
+        float pw = 320, ph = 148;
+        float px = 10, py = 10;
 
-        // ゴールド
+        DrawPanel(px, py, pw, ph);
+
+        GUI.Label(new Rect(px + 10, py + 6, pw - 20, 22), "◆ 修行クエスト", styleTitle);
+
+        float y = py + 30;
+        y = QuestLine(px + 10, y, pw - 20, sm.HarvestQuest);
+        y = QuestLine(px + 10, y, pw - 20, sm.MiningQuest);
+        y = QuestLine(px + 10, y, pw - 20, sm.CombatQuest);
+
+        string ls = sm.CanLeaveVillage ? "★ 旅立ち：解放済み！" : "旅立ち：修行中...";
+        GUI.Label(new Rect(px + 10, y + 2, pw - 20, 22), ls, styleLeave);
+    }
+
+    // ── 右上：ゴールドパネル ────────────────────────────────────
+    void DrawGoldPanel()
+    {
         var inv = InventoryManager.Instance;
         int gold = inv != null ? inv.Gold : 0;
-        GUI.Label(new Rect(goldX, panelY + 12, sw - goldX - padX, 28), "GOLD", styleSectionTitle);
-        GUI.Label(new Rect(goldX, panelY + 36, sw - goldX - padX, 36), $"{gold} G", styleGold);
 
-        // ── 区切り線 ─────────────────────────────────────────────
-        float divY = panelY + panelH * 0.43f;
-        DrawTex(padX * 0.5f, divY, sw - padX, 2, texDivider);
+        float pw = 160, ph = 72;
+        float px = Screen.width - pw - 10;
+        float py = 10;
 
-        // ── 下段：パーティ HP ────────────────────────────────────
-        float hpStartY = divY + 8;
-        float hpAreaH  = panelH - (divY - panelY) - 8 - 44; // 選択アイテム分を引く
-        float hpRowH   = hpAreaH / 4f;
+        DrawPanel(px, py, pw, ph);
+        GUI.Label(new Rect(px + 10, py + 6,  pw - 20, 20), "GOLD", styleTitle);
+        GUI.Label(new Rect(px + 10, py + 28, pw - 20, 36), $"{gold} G", styleGoldNum);
+    }
 
+    // ── 左下：パーティ HP パネル ────────────────────────────────
+    void DrawPartyPanel()
+    {
         var pm = PartyManager.Instance;
-        if (pm != null)
-        {
-            int idx = 0;
-            foreach (var m in pm.Members)
-            {
-                DrawHPRow(padX, hpStartY + idx * hpRowH, sw - padX * 2, hpRowH - 2, m);
-                idx++;
-            }
-        }
+        if (pm == null) return;
 
-        // ── 最下段：選択アイテム ──────────────────────────────────
+        float pw = 260, ph = 10 + pm.Members.Count * 36 + 10;
+        float px = 10;
+        float py = Screen.height - ph - 50; // アイテムバー分を上にずらす
+
+        DrawPanel(px, py, pw, ph);
+        GUI.Label(new Rect(px + 10, py + 6, pw - 20, 20), "◆ パーティ", styleTitle);
+
+        float y = py + 28;
+        foreach (var m in pm.Members)
+        {
+            // 名前
+            GUI.Label(new Rect(px + 8, y + 2, 72, 20), m.characterName, styleHPName);
+
+            // HP バー背景
+            float barX = px + 84;
+            float barW = pw - 84 - 60;
+            float barY = y + 8;
+            float barH = 12;
+            DrawTex(barX, barY, barW, barH, texHPBg);
+
+            float ratio = m.maxHp > 0 ? (float)m.currentHp / m.maxHp : 0f;
+            DrawTex(barX, barY, barW * ratio, barH, ratio > 0.3f ? texHPFull : texHPLow);
+
+            // HP 数値
+            GUI.Label(new Rect(barX + barW + 6, y + 2, 52, 20),
+                      $"{m.currentHp}/{m.maxHp}", styleHPName);
+
+            y += 36;
+        }
+    }
+
+    // ── 下中央：選択アイテムバー ────────────────────────────────
+    void DrawItemBar()
+    {
         var gp = GridPlacer.Instance;
-        string itemLabel = gp != null ? gp.SelectedItemLabel : "";
-        if (!string.IsNullOrEmpty(itemLabel))
-        {
-            float itemW = sw * 0.6f;
-            GUI.Label(new Rect((sw - itemW) * 0.5f, sh - 42, itemW, 40),
-                      $"▶  {itemLabel}  ◀", styleItem);
-        }
+        string label = gp != null ? gp.SelectedItemLabel : "";
+        if (string.IsNullOrEmpty(label)) return;
+
+        float pw = 280, ph = 42;
+        float px = (Screen.width - pw) * 0.5f;
+        float py = Screen.height - ph - 8;
+
+        DrawPanel(px, py, pw, ph);
+        GUI.Label(new Rect(px, py, pw, ph), $"▶  {label}  ◀", styleItem);
     }
 
     // ================================================================
-    //  描画ヘルパー
+    //  共通ヘルパー
     // ================================================================
 
-    float DrawQuestLine(float x, float y, float w, QuestStep q, float currentY)
+    float QuestLine(float x, float y, float w, QuestStep q)
     {
-        if (q == null) return currentY;
+        if (q == null) return y;
         bool done = q.IsComplete;
-        string prefix = done ? "✦ " : "◇ ";
-        string text   = $"{prefix}{q.title}  {q.current}/{q.required}";
-        GUI.Label(new Rect(x, y, w, 26), text, done ? styleQuestDone : styleQuest);
-        return y + 28;
+        GUI.Label(new Rect(x, y, w, 24),
+                  $"{(done ? "✦" : "◇")} {q.title}  {q.current}/{q.required}",
+                  done ? styleQuestDone : styleQuest);
+        return y + 26;
     }
 
-    void DrawHPRow(float x, float y, float w, float h, CharacterStats m)
+    void DrawPanel(float x, float y, float w, float h)
     {
-        float nameW  = w * 0.28f;
-        float barX   = x + nameW + 6;
-        float barW   = w * 0.52f;
-        float numX   = barX + barW + 6;
-        float numW   = w - nameW - barW - 12;
-        float barH   = Mathf.Min(h * 0.55f, 14);
-        float barY   = y + (h - barH) * 0.5f;
-
-        // 名前
-        GUI.Label(new Rect(x, y, nameW, h), m.characterName, styleHPName);
-
-        // HP バー背景
-        DrawTex(barX, barY, barW, barH, texHPBg);
-
-        // HP バー本体
-        float ratio   = m.maxHp > 0 ? (float)m.currentHp / m.maxHp : 0f;
-        Texture2D bar = ratio > 0.3f ? texHPFull : texHPLow;
-        DrawTex(barX, barY, barW * ratio, barH, bar);
-
-        // HP 数値
-        GUI.Label(new Rect(numX, y, numW, h), $"{m.currentHp}/{m.maxHp}", styleHPName);
+        // 背景
+        DrawTex(x, y, w, h, texBg);
+        // 4辺ボーダー
+        float b = 2;
+        DrawTex(x, y, w, b, texBorder);          // 上
+        DrawTex(x, y + h - b, w, b, texBorder);  // 下
+        DrawTex(x, y, b, h, texBorder);           // 左
+        DrawTex(x + w - b, y, b, h, texBorder);  // 右
     }
 
     static void DrawTex(float x, float y, float w, float h, Texture2D tex)
-    {
-        GUI.DrawTexture(new Rect(x, y, w, h), tex);
-    }
+        => GUI.DrawTexture(new Rect(x, y, w, h), tex);
 
     // ================================================================
-    //  初期化（OnGUI 内で初回だけ実行）
+    //  初期化（OnGUI 内で初回のみ）
     // ================================================================
 
     void Init()
     {
-        texPanelBg = MakeTex(new Color(0.04f, 0.04f, 0.18f, 0.92f));
-        texBorder  = MakeTex(new Color(0.85f, 0.65f, 0.10f, 1.00f));
-        texDivider = MakeTex(new Color(0.50f, 0.45f, 0.20f, 0.80f));
-        texHPFull  = MakeTex(new Color(0.20f, 0.80f, 0.25f, 1.00f));
-        texHPLow   = MakeTex(new Color(0.85f, 0.20f, 0.10f, 1.00f));
-        texHPBg    = MakeTex(new Color(0.10f, 0.10f, 0.10f, 0.90f));
+        texBg     = MakeTex(new Color(0.04f, 0.04f, 0.18f, 0.88f));
+        texBorder = MakeTex(new Color(0.80f, 0.62f, 0.10f, 1.00f));
+        texHPFull = MakeTex(new Color(0.20f, 0.82f, 0.25f, 1.00f));
+        texHPLow  = MakeTex(new Color(0.85f, 0.18f, 0.10f, 1.00f));
+        texHPBg   = MakeTex(new Color(0.08f, 0.08f, 0.08f, 0.90f));
 
-        styleQuest = Style(16, new Color(0.85f, 0.85f, 0.85f), TextAnchor.MiddleLeft);
-        styleQuestDone = Style(16, new Color(0.60f, 0.95f, 0.60f), TextAnchor.MiddleLeft, FontStyle.Bold);
-        styleGold  = Style(28, new Color(1.00f, 0.85f, 0.10f), TextAnchor.UpperLeft, FontStyle.Bold);
-        styleLeave = Style(15, new Color(0.55f, 0.90f, 0.55f), TextAnchor.MiddleLeft, FontStyle.Italic);
-        styleHPName = Style(15, Color.white, TextAnchor.MiddleLeft);
-        styleItem  = Style(22, new Color(1.00f, 0.95f, 0.50f), TextAnchor.MiddleCenter, FontStyle.Bold);
-        styleSectionTitle = Style(14, new Color(0.85f, 0.70f, 0.20f), TextAnchor.MiddleLeft, FontStyle.Bold);
+        styleTitle    = Style(14, new Color(0.85f, 0.68f, 0.18f), bold: true);
+        styleQuest    = Style(14, new Color(0.88f, 0.88f, 0.88f));
+        styleQuestDone = Style(14, new Color(0.55f, 0.95f, 0.55f), bold: true);
+        styleGoldNum  = Style(26, new Color(1.00f, 0.88f, 0.10f), bold: true);
+        styleLeave    = Style(13, new Color(0.55f, 0.90f, 0.55f), italic: true);
+        styleHPName   = Style(13, Color.white);
+        styleItem     = Style(20, new Color(1.00f, 0.95f, 0.45f),
+                              anchor: TextAnchor.MiddleCenter, bold: true);
 
         ready = true;
     }
@@ -179,13 +188,16 @@ public class HUDManager : MonoBehaviour
 
     static GUIStyle Style(int size, Color color,
         TextAnchor anchor = TextAnchor.MiddleLeft,
-        FontStyle fontStyle = FontStyle.Normal)
+        bool bold = false, bool italic = false)
     {
         var s = new GUIStyle(GUI.skin.label)
         {
             fontSize  = size,
-            fontStyle = fontStyle,
             alignment = anchor,
+            fontStyle = bold && italic ? FontStyle.BoldAndItalic
+                      : bold          ? FontStyle.Bold
+                      : italic        ? FontStyle.Italic
+                      :                 FontStyle.Normal,
         };
         s.normal.textColor = color;
         return s;
