@@ -60,6 +60,12 @@ public static class GameSetup
         // SaveManager
         CreateChild(managers, "SaveManager").AddComponent<SaveManager>();
 
+        // ShopUI
+        CreateChild(managers, "ShopUI").AddComponent<ShopUI>();
+
+        // MinimapUI
+        CreateChild(managers, "MinimapUI").AddComponent<MinimapUI>();
+
         // ================================================================
         //  プレイヤー（青いカプセル）
         // ================================================================
