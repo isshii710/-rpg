@@ -1,11 +1,10 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.UI;
-using TMPro;
 
 /// <summary>
 /// メニュー「RPG → HUD を作成」を実行すると
-/// Canvas + TextMeshPro テキスト群を自動生成して HUDManager に接続する。
+/// Canvas + Text 群を自動生成して HUDManager に接続する。
 /// </summary>
 public static class HUDSetup
 {
@@ -19,15 +18,15 @@ public static class HUDSetup
         // ---- Canvas ----
         var canvasGO = new GameObject("HUDCanvas");
         var canvas   = canvasGO.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 10;
-        canvasGO.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        canvasGO.AddComponent<GraphicRaycaster>();
 
-        // CanvasScaler の参照解像度を設定
-        var scaler = canvasGO.GetComponent<CanvasScaler>();
+        var scaler = canvasGO.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode        = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         scaler.matchWidthOrHeight  = 0.5f;
+
+        canvasGO.AddComponent<GraphicRaycaster>();
 
         // ---- HUDManager をアタッチ ----
         var hud   = canvasGO.AddComponent<HUDManager>();
@@ -35,48 +34,49 @@ public static class HUDSetup
 
         // ---- ゴールド（右上） ----
         var goldText = CreateText(canvasGO, "GoldText", "G 0",
-            TextAlignmentOptions.TopRight,
+            TextAnchor.UpperRight,
             new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(1f, 1f),
-            new Vector2(-10f, -10f), new Vector2(200f, 40f));
-        goldText.fontSize = 28;
-        goldText.color    = new Color(1f, 0.9f, 0.1f);
+            new Vector2(-10f, -10f), new Vector2(220f, 40f),
+            28, new Color(1f, 0.9f, 0.1f));
 
         // ---- クエスト（左上） ----
-        var harvestText = CreateText(canvasGO, "HarvestQuestText", "・農業の修行",
-            TextAlignmentOptions.TopLeft,
+        var harvestText = CreateText(canvasGO, "HarvestQuestText", "[ ] 農業の修行",
+            TextAnchor.UpperLeft,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(10f, -10f), new Vector2(500f, 36f));
+            new Vector2(10f, -10f), new Vector2(520f, 36f),
+            20, Color.white);
 
-        var miningText = CreateText(canvasGO, "MiningQuestText", "・採掘の修行",
-            TextAlignmentOptions.TopLeft,
+        var miningText = CreateText(canvasGO, "MiningQuestText", "[ ] 採掘の修行",
+            TextAnchor.UpperLeft,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(10f, -50f), new Vector2(500f, 36f));
+            new Vector2(10f, -50f), new Vector2(520f, 36f),
+            20, Color.white);
 
-        var combatText = CreateText(canvasGO, "CombatQuestText", "・戦闘の修行",
-            TextAlignmentOptions.TopLeft,
+        var combatText = CreateText(canvasGO, "CombatQuestText", "[ ] 戦闘の修行",
+            TextAnchor.UpperLeft,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(10f, -90f), new Vector2(500f, 36f));
+            new Vector2(10f, -90f), new Vector2(520f, 36f),
+            20, Color.white);
 
         var leaveText = CreateText(canvasGO, "LeaveStatusText", "旅立ち：修行中...",
-            TextAlignmentOptions.TopLeft,
+            TextAnchor.UpperLeft,
             new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(10f, -130f), new Vector2(400f, 36f));
-        leaveText.color = new Color(0.7f, 1f, 0.7f);
+            new Vector2(10f, -130f), new Vector2(400f, 36f),
+            20, new Color(0.6f, 1f, 0.6f));
 
         // ---- パーティ HP（左下） ----
         var partyText = CreateText(canvasGO, "PartyHPText", "",
-            TextAlignmentOptions.BottomLeft,
+            TextAnchor.LowerLeft,
             new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(0f, 0f),
-            new Vector2(10f, 10f), new Vector2(340f, 130f));
-        partyText.fontSize = 22;
+            new Vector2(10f, 10f), new Vector2(340f, 130f),
+            20, Color.white);
 
         // ---- 選択アイテム（下中央） ----
         var itemText = CreateText(canvasGO, "SelectedItemText", "[ ]",
-            TextAlignmentOptions.Bottom,
+            TextAnchor.LowerCenter,
             new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
-            new Vector2(0f, 14f), new Vector2(300f, 44f));
-        itemText.fontSize = 30;
-        itemText.color    = new Color(1f, 1f, 0.6f);
+            new Vector2(0f, 14f), new Vector2(300f, 44f),
+            28, new Color(1f, 1f, 0.5f));
 
         // ---- SerializedObject でフィールドをアサイン ----
         hudSO.FindProperty("goldText").objectReferenceValue         = goldText;
@@ -92,38 +92,40 @@ public static class HUDSetup
             UnityEngine.SceneManagement.SceneManager.GetActiveScene());
 
         Selection.activeGameObject = canvasGO;
-        Debug.Log("[HUDSetup] ✅ HUD 作成完了！ Ctrl+S でシーンを保存して ▶ Play を押してください。");
+        Debug.Log("[HUDSetup] HUD 作成完了！ Ctrl+S でシーンを保存して Play を押してください。");
     }
 
     // ================================================================
     //  ヘルパー
     // ================================================================
 
-    static TMP_Text CreateText(
+    static Text CreateText(
         GameObject parent,
         string name,
         string defaultText,
-        TextAlignmentOptions alignment,
+        TextAnchor anchor,
         Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot,
-        Vector2 anchoredPos, Vector2 sizeDelta)
+        Vector2 anchoredPos, Vector2 sizeDelta,
+        int fontSize, Color color)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent.transform, false);
 
-        var rect        = go.AddComponent<RectTransform>();
-        rect.anchorMin       = anchorMin;
-        rect.anchorMax       = anchorMax;
-        rect.pivot           = pivot;
+        var rect              = go.AddComponent<RectTransform>();
+        rect.anchorMin        = anchorMin;
+        rect.anchorMax        = anchorMax;
+        rect.pivot            = pivot;
         rect.anchoredPosition = anchoredPos;
-        rect.sizeDelta       = sizeDelta;
+        rect.sizeDelta        = sizeDelta;
 
-        var tmp          = go.AddComponent<TextMeshProUGUI>();
-        tmp.text         = defaultText;
-        tmp.fontSize     = 24;
-        tmp.alignment    = alignment;
-        tmp.color        = Color.white;
-        tmp.raycastTarget = false;
+        var txt           = go.AddComponent<Text>();
+        txt.text          = defaultText;
+        txt.fontSize      = fontSize;
+        txt.alignment     = anchor;
+        txt.color         = color;
+        txt.raycastTarget = false;
+        txt.font          = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
 
-        return tmp;
+        return txt;
     }
 }

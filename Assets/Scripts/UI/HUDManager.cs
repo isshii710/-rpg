@@ -1,28 +1,28 @@
 using UnityEngine;
-using TMPro;
+using UnityEngine.UI;
 
 /// <summary>
 /// ゲーム中の HUD を更新する MonoBehaviour。
-/// Canvas 直下の各 TextMeshProUGUI を Inspector でアサインする。
+/// Canvas 直下の各 Text を Inspector でアサインする。
 /// </summary>
 public class HUDManager : MonoBehaviour
 {
     public static HUDManager Instance { get; private set; }
 
     [Header("ゴールド（右上）")]
-    [SerializeField] TMP_Text goldText;
+    [SerializeField] Text goldText;
 
     [Header("クエスト進捗（左上）")]
-    [SerializeField] TMP_Text harvestQuestText;
-    [SerializeField] TMP_Text miningQuestText;
-    [SerializeField] TMP_Text combatQuestText;
-    [SerializeField] TMP_Text leaveStatusText;
+    [SerializeField] Text harvestQuestText;
+    [SerializeField] Text miningQuestText;
+    [SerializeField] Text combatQuestText;
+    [SerializeField] Text leaveStatusText;
 
     [Header("パーティ HP（左下）")]
-    [SerializeField] TMP_Text partyHPText;
+    [SerializeField] Text partyHPText;
 
     [Header("選択中アイテム（下中央）")]
-    [SerializeField] TMP_Text selectedItemText;
+    [SerializeField] Text selectedItemText;
 
     void Awake()
     {
@@ -60,7 +60,7 @@ public class HUDManager : MonoBehaviour
             combatQuestText.text = QuestLine(sm.CombatQuest);
 
         if (leaveStatusText != null)
-            leaveStatusText.text = sm.CanLeaveVillage ? "旅立ち：解放済み ✓" : "旅立ち：修行中...";
+            leaveStatusText.text = sm.CanLeaveVillage ? "旅立ち：解放済み" : "旅立ち：修行中...";
     }
 
     void UpdatePartyHP()
@@ -74,7 +74,7 @@ public class HUDManager : MonoBehaviour
 
         var sb = new System.Text.StringBuilder();
         foreach (var m in members)
-            sb.AppendLine($"{m.characterName}  HP {m.currentHp}/{m.maxHp}");
+            sb.AppendLine($"{m.characterName} HP{m.currentHp}/{m.maxHp}");
 
         partyHPText.text = sb.ToString().TrimEnd();
     }
@@ -83,9 +83,9 @@ public class HUDManager : MonoBehaviour
     {
         if (selectedItemText == null) return;
         var gp = GridPlacer.Instance;
-        selectedItemText.text = gp != null ? $"[{gp.SelectedItemLabel}]" : "";
+        selectedItemText.text = gp != null ? $"[ {gp.SelectedItemLabel} ]" : "";
     }
 
     static string QuestLine(QuestStep q)
-        => $"{(q.IsComplete ? "✓" : "・")} {q.title}  {q.current}/{q.required}";
+        => $"{(q.IsComplete ? "[完]" : "[ ]")} {q.title}  {q.current}/{q.required}";
 }
