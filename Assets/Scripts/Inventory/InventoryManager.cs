@@ -40,6 +40,11 @@ public class InventoryManager : MonoBehaviour
         { ItemId.Workshop,      (buy: 120, sell: 60) },
         { ItemId.Storage,       (buy:  80, sell: 40) },
         { ItemId.Decoration,    (buy:  30, sell: 15) },
+        // 装備・消耗品
+        { ItemId.Sword,         (buy: 100, sell:  50) },
+        { ItemId.Shield,        (buy:  80, sell:  40) },
+        { ItemId.Armor,         (buy: 120, sell:  60) },
+        { ItemId.Potion,        (buy:  20, sell:  10) },
     };
 
     // ================================================================

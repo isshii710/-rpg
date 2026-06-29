@@ -22,4 +22,10 @@ public enum ItemId
     Storage       = 32,
     Decoration    = 33,
     TradePost     = 40,   // 交易所
+
+    // 装備・消耗品（武器屋・防具屋で購入）
+    Sword         = 50,   // 剣
+    Shield        = 51,   // 盾
+    Armor         = 52,   // 鎧
+    Potion        = 53,   // 薬草（HP 回復アイテム）
 }
