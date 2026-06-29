@@ -15,7 +15,7 @@ using UnityEditor;
 public static class VillageSetup
 {
     [MenuItem("RPG/村をセットアップ")]
-    static void Setup()
+    public static void Setup()
     {
         // ── 商人・宿屋 ──
         Shopkeeper("武器屋のゴード", NpcShopType.Weapon,
@@ -88,7 +88,9 @@ public static class VillageSetup
         var go = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         go.name = npcName;
         go.transform.position = pos;
-        go.GetComponent<Renderer>().material.color = color;
+        var mat = go.GetComponent<Renderer>().material;
+        mat.color = color;
+        mat.SetColor("_BaseColor", color);
 
         // コライダー無効（GridPlacer のレイキャストに干渉しないように）
         var col = go.GetComponent<Collider>();

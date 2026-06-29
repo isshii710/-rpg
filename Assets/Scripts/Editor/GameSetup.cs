@@ -70,6 +70,10 @@ public static class GameSetup
         CreateChild(managers, "BuildModeManager").AddComponent<BuildModeManager>();
         CreateChild(managers, "BuildUI").AddComponent<BuildUI>();
 
+        // NPC UI（村人・ショップ対話）
+        CreateChild(managers, "NpcShopUI").AddComponent<NpcShopUI>();
+        CreateChild(managers, "NpcDialogueUI").AddComponent<NpcDialogueUI>();
+
         // ================================================================
         //  プレイヤー（青いカプセル）
         // ================================================================
@@ -77,7 +81,9 @@ public static class GameSetup
         var playerGO = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         playerGO.name = "Player";
         playerGO.transform.position = new Vector3(5.5f, 0.5f, 5.5f);
-        playerGO.GetComponent<Renderer>().material.color = Color.blue;
+        var playerMat = playerGO.GetComponent<Renderer>().material;
+        playerMat.color = Color.blue;
+        playerMat.SetColor("_BaseColor", Color.blue);
 
         // コライダーはグリッドの当たり判定に干渉しないよう無効化
         var cap = playerGO.GetComponent<Collider>();
@@ -101,7 +107,9 @@ public static class GameSetup
         ground.transform.position  = new Vector3(5f, 0f, 5f);
         ground.transform.localScale = new Vector3(1f, 1f, 1f);
         // マテリアルを緑っぽく
-        ground.GetComponent<Renderer>().material.color = new Color(0.4f, 0.6f, 0.3f);
+        var groundMat = ground.GetComponent<Renderer>().material;
+        groundMat.color = new Color(0.4f, 0.6f, 0.3f);
+        groundMat.SetColor("_BaseColor", new Color(0.4f, 0.6f, 0.3f));
         // GridPlacer がレイキャストする "Default" レイヤーのまま
 
         // ================================================================
@@ -122,6 +130,9 @@ public static class GameSetup
             followSO.FindProperty("target").objectReferenceValue = playerGO.transform;
             followSO.ApplyModifiedProperties();
         }
+
+        // 村・NPC を配置
+        VillageSetup.Setup();
 
         // シーンを「変更あり」にしてCtrl+Sで保存できるようにする
         EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());

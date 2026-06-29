@@ -21,9 +21,10 @@ public class BuildModeManager : MonoBehaviour
 {
     public static BuildModeManager Instance { get; private set; }
 
-    public bool IsActive { get; private set; }
-    public int  SelectedIndex  { get; private set; }
-    public int  Rotation       { get; private set; }  // 0..3 (×90°)
+    public bool IsActive      { get; private set; }
+    public int  SelectedIndex { get; private set; }
+    public int  Rotation      { get; private set; }   // 0..3 (×90°)
+    public int  CurrentFloor  { get; private set; }   // 0=1F, 1=2F, ...
 
     public BuildPieceData[] Pieces { get; private set; }
 
@@ -60,8 +61,10 @@ public class BuildModeManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F)) Toggle();
         if (!IsActive) return;
 
-        if (Input.GetKeyDown(KeyCode.R))       Rotate();
-        if (Input.GetKeyDown(KeyCode.Escape))  ExitBuildMode();
+        if (Input.GetKeyDown(KeyCode.R))        Rotate();
+        if (Input.GetKeyDown(KeyCode.Escape))   ExitBuildMode();
+        if (Input.GetKeyDown(KeyCode.PageUp))   CurrentFloor++;
+        if (Input.GetKeyDown(KeyCode.PageDown)) CurrentFloor = Mathf.Max(0, CurrentFloor - 1);
 
         // 1-4 でカテゴリ選択
         if (Input.GetKeyDown(KeyCode.Alpha1)) SelectCategory(BuildPieceCategory.Floor);
@@ -98,7 +101,8 @@ public class BuildModeManager : MonoBehaviour
 
     void ExitBuildMode()
     {
-        IsActive = false;
+        IsActive     = false;
+        CurrentFloor = 0;
         DestroyGhost();
         if (GridPlacer.Instance != null) GridPlacer.Instance.enabled = true;
         Debug.Log("[Build] ビルドモード OFF");
@@ -222,25 +226,27 @@ public class BuildModeManager : MonoBehaviour
         var key = ToKey(Snap(wp));
         if (!placed.ContainsKey(key))
         {
-            // 現在の選択・回転に依存せず、マウス周辺のすべてのスナップ候補を試す
             float x  = Mathf.Round(wp.x);
             float z  = Mathf.Round(wp.z);
             float xH = Mathf.Floor(wp.x) + 0.5f;
             float zH = Mathf.Floor(wp.z) + 0.5f;
 
-            Vector3[] candidates = {
-                new Vector3(xH, 0f, zH),  // 床
-                new Vector3(xH, 1f, zH),  // 屋根
-                new Vector3(xH, 0f, z),   // N/S 壁
-                new Vector3(x,  0f, zH),  // E/W 壁
-                new Vector3(x,  0f, z),   // 柱
-            };
-
             bool found = false;
-            foreach (var pos in candidates)
+            for (int fl = 0; fl <= 10 && !found; fl++)
             {
-                var k = ToKey(pos);
-                if (placed.ContainsKey(k)) { key = k; found = true; break; }
+                float fy = fl;
+                Vector3[] candidates = {
+                    new Vector3(xH, fy,        zH),
+                    new Vector3(xH, fy + 1f,   zH),
+                    new Vector3(xH, fy,        z),
+                    new Vector3(x,  fy,        zH),
+                    new Vector3(x,  fy,        z),
+                };
+                foreach (var pos in candidates)
+                {
+                    var k = ToKey(pos);
+                    if (placed.ContainsKey(k)) { key = k; found = true; break; }
+                }
             }
             if (!found) return;
         }
@@ -281,26 +287,27 @@ public class BuildModeManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>ワールド座標をピース種別・回転に応じてスナップする。</summary>
+    /// <summary>ワールド座標をピース種別・回転・階層に応じてスナップする。</summary>
     Vector3 Snap(Vector3 wp)
     {
         float x  = Mathf.Round(wp.x);           // 整数 X
         float z  = Mathf.Round(wp.z);            // 整数 Z
         float xH = Mathf.Floor(wp.x) + 0.5f;    // 半整数 X
         float zH = Mathf.Floor(wp.z) + 0.5f;    // 半整数 Z
+        float y  = CurrentFloor;                  // 階層 Y (0=1F, 1=2F, ...)
 
         var data = CurrentPiece();
-        if (data == null) return new Vector3(xH, 0f, zH);
+        if (data == null) return new Vector3(xH, y, zH);
 
         return data.category switch
         {
-            BuildPieceCategory.Floor  => new Vector3(xH, 0f, zH),
-            BuildPieceCategory.Roof   => new Vector3(xH, 1f, zH),
-            BuildPieceCategory.Pillar => new Vector3(x,  0f, z),
+            BuildPieceCategory.Floor  => new Vector3(xH, y,        zH),
+            BuildPieceCategory.Roof   => new Vector3(xH, y + 1f,   zH),
+            BuildPieceCategory.Pillar => new Vector3(x,  y,        z),
             BuildPieceCategory.Wall   => (Rotation % 2 == 0)
-                                            ? new Vector3(xH, 0f, z)   // N/S 壁
-                                            : new Vector3(x,  0f, zH), // E/W 壁
-            _ => new Vector3(xH, 0f, zH),
+                                            ? new Vector3(xH, y, z)    // N/S 壁
+                                            : new Vector3(x,  y, zH),  // E/W 壁
+            _ => new Vector3(xH, y, zH),
         };
     }
 
