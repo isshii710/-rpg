@@ -61,7 +61,12 @@ public class BuildUI : MonoBehaviour
         // 回転インジケーター
         string rotStr = (bm.Rotation * 90) + "°  " + RotArrow(bm.Rotation);
         GUI.Label(new Rect(px + 8, y, PW - 16, 20), $"向き: {rotStr}", styleRot);
-        y += 24;
+        y += 22;
+
+        // 階層インジケーター
+        GUI.Label(new Rect(px + 8, y, PW - 16, 20),
+                  $"階層: {bm.CurrentFloor + 1}F  (PgUp/PgDn)", styleRot);
+        y += 22;
 
         // 区切り線
         DrawLine(px + 6, y, PW - 12);
@@ -112,12 +117,14 @@ public class BuildUI : MonoBehaviour
         }
 
         // ── 操作ヒント（下部固定） ──
-        float hy = py + ph - 72;
+        float hy = py + ph - 90;
         DrawLine(px + 6, hy, PW - 12);
         hy += 6;
-        GUI.Label(new Rect(px + 8, hy, PW - 16, 18), "左Click: 配置", styleHint);
+        GUI.Label(new Rect(px + 8, hy,      PW - 16, 18), "左Click: 配置", styleHint);
         GUI.Label(new Rect(px + 8, hy + 18, PW - 16, 18), "右Click: 撤去", styleHint);
-        GUI.Label(new Rect(px + 8, hy + 36, PW - 16, 18), "R: 回転  F/Esc: 終了", styleHint);
+        GUI.Label(new Rect(px + 8, hy + 36, PW - 16, 18), "R: 回転", styleHint);
+        GUI.Label(new Rect(px + 8, hy + 54, PW - 16, 18), "PgUp/Dn: 階層↑↓", styleHint);
+        GUI.Label(new Rect(px + 8, hy + 72, PW - 16, 18), "F/Esc: 終了", styleHint);
     }
 
     static void SelectFirstInCategory(BuildPieceCategory cat, BuildModeManager bm)

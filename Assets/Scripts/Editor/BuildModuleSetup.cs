@@ -122,10 +122,22 @@ public static class BuildModuleSetup
 
     static Material Mat(string name, Color color)
     {
-        var path = $"Assets/Prefabs/BuildPieces/{name}.mat";
-        var ex   = AssetDatabase.LoadAssetAtPath<Material>(path);
-        if (ex != null) { ex.color = color; EditorUtility.SetDirty(ex); return ex; }
-        var m = new Material(Shader.Find("Standard")) { color = color };
+        var path   = $"Assets/Prefabs/BuildPieces/{name}.mat";
+        var shader = Shader.Find("Universal Render Pipeline/Lit")
+                  ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                  ?? Shader.Find("Standard");
+        var ex = AssetDatabase.LoadAssetAtPath<Material>(path);
+        if (ex != null)
+        {
+            ex.shader = shader;
+            ex.color  = color;
+            ex.SetColor("_BaseColor", color);
+            EditorUtility.SetDirty(ex);
+            return ex;
+        }
+        var m = new Material(shader);
+        m.color = color;
+        m.SetColor("_BaseColor", color);
         AssetDatabase.CreateAsset(m, path);
         return m;
     }
