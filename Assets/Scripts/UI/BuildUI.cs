@@ -41,9 +41,9 @@ public class BuildUI : MonoBehaviour
         if (bm == null || !bm.IsActive) return;
 
         // 選択ピースに合わせてカテゴリタブを同期
-        var sel = (bm.Pieces != null && bm.SelectedIndex < bm.Pieces.Length)
-                  ? bm.Pieces[bm.SelectedIndex] : null;
-        if (sel != null) currentCat = sel.category;
+        var selPiece = (bm.Pieces != null && bm.SelectedIndex < bm.Pieces.Length)
+                       ? bm.Pieces[bm.SelectedIndex] : null;
+        if (selPiece != null) currentCat = selPiece.category;
 
         // ── パネル全体 ──
         float ph = Screen.height - MARGIN * 2;
